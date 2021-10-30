@@ -54,6 +54,7 @@ namespace XIVLauncher.Game
 
         // The user agent for frontier pages. {0} has to be replaced by a unique computer id and its checksum
         private const string USER_AGENT_TEMPLATE = "SQEXAuthor/2.0.0(Windows 6.2; ja-jp; {0})";
+        private const string USER_AGENT_MAC = "macSQEXAuthor/2.0.0(MacOSX; ja-jp)";
         private readonly string _userAgent = GenerateUserAgent();
 
         private const int STEAM_APP_ID = 39210;
@@ -336,7 +337,7 @@ namespace XIVLauncher.Game
         {
             using var client = new WebClient();
 
-            client.Headers.Add("User-Agent", "FFXIV PATCH CLIENT");
+            client.Headers.Add("User-Agent", EnvironmentSettings.IsMac ? "FFXIV-MAC PATCH CLIENT" : "FFXIV PATCH CLIENT");
             client.Headers.Add("Host", "patch-bootver.ffxiv.com");
 
             // Why tf is this http??
@@ -358,7 +359,7 @@ namespace XIVLauncher.Game
             using var client = new WebClient();
 
             client.Headers.Add("X-Hash-Check", "enabled");
-            client.Headers.Add("User-Agent", "FFXIV PATCH CLIENT");
+            client.Headers.Add("User-Agent", EnvironmentSettings.IsMac ? "FFXIV-MAC PATCH CLIENT" : "FFXIV PATCH CLIENT");
             //client.Headers.Add("Referer",
             //    $"https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn={loginResult.Region}");
             client.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
@@ -366,25 +367,28 @@ namespace XIVLauncher.Game
             var url =
                 $"https://patch-gamever.ffxiv.com/http/win32/ffxivneo_release_game/{Repository.Ffxiv.GetVer(gamePath)}/{loginResult.SessionId}";
 
+            static (string Uid, LoginState result, PatchListEntry[] PendingGamePatches) checkPatchAndLogin (string result, string sid) 
+            {
+                if (result == string.Empty)
+                    return (sid, LoginState.Ok, null);
+
+                Log.Verbose("Patching is needed... List:\n" + result);
+
+                var pendingPatches = PatchListParser.Parse(result);
+
+                return (sid, LoginState.NeedsPatchGame, pendingPatches);
+            }
+
             try
             {
                 var report = GetVersionReport(gamePath, loginResult.MaxExpansion);
                 var result = client.UploadString(url, report);
 
                 // Get the unique ID needed to authenticate with the lobby server
-                if (client.ResponseHeaders.AllKeys.Contains("X-Patch-Unique-Id"))
-                {
-                    var sid = client.ResponseHeaders["X-Patch-Unique-Id"];
-
-                    if (result == string.Empty)
-                        return (sid, LoginState.Ok, null);
-
-                    Log.Verbose("Patching is needed... List:\n" + result);
-
-                    var pendingPatches = PatchListParser.Parse(result);
-
-                    return (sid, LoginState.NeedsPatchGame, pendingPatches);
-                }
+                if (client.ResponseHeaders.AllKeys.Contains("X-Patch-Unique-Id")) 
+                    return checkPatchAndLogin(result, client.ResponseHeaders["X-Patch-Unique-Id"]);
+                else if (client.ResponseHeaders.AllKeys.Contains("x-patch-unique-id"))
+                    return checkPatchAndLogin(result, client.ResponseHeaders["x-patch-unique-id"]);
             }
             catch (WebException exc)
             {
@@ -558,7 +562,7 @@ namespace XIVLauncher.Game
 
         private static string GenerateUserAgent()
         {
-            return string.Format(USER_AGENT_TEMPLATE, MakeComputerId());
+            return EnvironmentSettings.IsMac ? USER_AGENT_MAC : string.Format(USER_AGENT_TEMPLATE, MakeComputerId());
         }
     }
 }
