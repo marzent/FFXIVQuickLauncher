@@ -86,18 +86,18 @@ namespace XIVLauncher.Windows
                 Title += " - Wine on Linux";
         }
 
-        private void SetupHeadlines()
+        private async Task SetupHeadlines()
         {
             try
             {
                 _bannerChangeTimer?.Stop();
 
-                _headlines = Headlines.Get(_launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
+                _headlines = await Headlines.Get(_launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
 
                 _bannerBitmaps = new BitmapImage[_headlines.Banner.Length];
                 for (var i = 0; i < _headlines.Banner.Length; i++)
                 {
-                    var imageBytes = _launcher.DownloadAsLauncher(_headlines.Banner[i].LsbBanner.ToString(), App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
+                    var imageBytes = await _launcher.DownloadAsLauncher(_headlines.Banner[i].LsbBanner.ToString(), App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
 
                     using var stream = new MemoryStream(imageBytes);
 
@@ -168,7 +168,7 @@ namespace XIVLauncher.Windows
             var gateStatus = false;
             try
             {
-                gateStatus = _launcher.GetGateStatus();
+                gateStatus = Task.Run(() => _launcher.GetGateStatus()).Result;
             }
             catch
             {
@@ -268,7 +268,7 @@ namespace XIVLauncher.Windows
             this.Kickoff(false, false);
         }
 
-        private void HandleBootCheck(Action whenFinishAction)
+        private async Task HandleBootCheck(Action whenFinishAction)
         {
             try
             {
@@ -277,7 +277,7 @@ namespace XIVLauncher.Windows
                 Game.Patch.PatchList.PatchListEntry[] bootPatches = null;
                 try
                 {
-                    bootPatches = _launcher.CheckBootVersion(App.Settings.GamePath);
+                    bootPatches = await _launcher.CheckBootVersion(App.Settings.GamePath);
                 }
                 catch (Exception ex)
                 {
@@ -286,7 +286,7 @@ namespace XIVLauncher.Windows
 
                     _isLoggingIn = false;
 
-                    Task.Run(SetupHeadlines);
+                    var _ = Task.Run(SetupHeadlines);
                     Show();
                     Activate();
                     return;
@@ -339,8 +339,6 @@ namespace XIVLauncher.Windows
                             // This is a good indicator that we should clear the UID cache
                             UniqueIdCache.Instance.Reset();
 
-                            await patcher.UnInitializeAcquisition();
-
                             mutex.Close();
                             mutex = null;
                         };
@@ -369,7 +367,7 @@ namespace XIVLauncher.Windows
         {
             ProblemCheck.RunCheck();
 
-            HandleBootCheck(() => this.Dispatcher.Invoke(() => this.PrepareLogin(autoLogin, startGame)));
+            var _ = HandleBootCheck(() => this.Dispatcher.Invoke(() => this.PrepareLogin(autoLogin, startGame)));
         }
 
         private void Reactivate()
@@ -540,7 +538,7 @@ namespace XIVLauncher.Windows
                             }
                             else
                             {
-                                await this.Dispatcher.Invoke(() => StartGameAndAddon(loginResult, gateStatus));
+                                this.Dispatcher.Invoke(() => StartGameAndAddon(loginResult, gateStatus));
                             }
                             _installer.Stop();
                         }
@@ -552,8 +550,6 @@ namespace XIVLauncher.Windows
                                 _isLoggingIn = false;
                             });
                         }
-
-                        await patcher.UnInitializeAcquisition();
 
                         mutex.Close();
                         mutex = null;
@@ -569,14 +565,14 @@ namespace XIVLauncher.Windows
             }
         }
 
-        private async void StartLogin(string otp, bool startGame)
+        private void StartLogin(string otp, bool startGame)
         {
             Log.Information("StartLogin() called");
 
             var gateStatus = false;
             try
             {
-                gateStatus = await Task.Run(() => _launcher.GetGateStatus());
+                gateStatus = Task.Run(() => _launcher.GetGateStatus()).Result;
             }
             catch
             {
@@ -585,8 +581,14 @@ namespace XIVLauncher.Windows
 
             try
             {
-                var loginResult = _launcher.Login(LoginUsername.Text, LoginPassword.Password, otp,
-                    SteamCheckBox.IsChecked == true, App.Settings.UniqueIdCacheEnabled, App.Settings.GamePath);
+                var username = LoginUsername.Text;
+                var password = LoginPassword.Password;
+                var isSteam = SteamCheckBox.IsChecked == true;
+                var uniqueIdCache = App.Settings.UniqueIdCacheEnabled;
+                var gamePath = App.Settings.GamePath;
+
+                var loginResult = Task.Run(() =>_launcher.Login(username, password, otp,
+                    isSteam, uniqueIdCache, gamePath)).Result;
 
                 Debug.Assert(loginResult != null, "ASSERTION FAILED loginResult != null!");
 
@@ -676,7 +678,7 @@ namespace XIVLauncher.Windows
 
                 if (startGame)
                 {
-                    await StartGameAndAddon(loginResult, gateStatus);
+                    StartGameAndAddon(loginResult, gateStatus);
                 }
                 else
                 {
@@ -730,7 +732,7 @@ namespace XIVLauncher.Windows
             }
         }
 
-        private async Task StartGameAndAddon(Launcher.LoginResult loginResult, bool gateStatus)
+        private void StartGameAndAddon(Launcher.LoginResult loginResult, bool gateStatus)
         {
             if (!gateStatus)
             {
@@ -767,6 +769,8 @@ namespace XIVLauncher.Windows
 
             var addonMgr = new AddonManager();
 
+            var addonMgrCancelTokenSource = new CancellationTokenSource();
+
             try
             {
                 if (App.Settings.AddonList == null)
@@ -785,7 +789,7 @@ namespace XIVLauncher.Windows
                     Log.Warning("In-Game addon was not enabled.");
                 }
 
-                await Task.Run(() => addonMgr.RunAddons(gameProcess, App.Settings, addons));
+                Task.Run(() => addonMgr.RunAddons(gameProcess, App.Settings, addons), addonMgrCancelTokenSource.Token);
             }
             catch (Exception ex)
             {
@@ -802,11 +806,14 @@ namespace XIVLauncher.Windows
                 while (!gameProcess.HasExited)
                 {
                     gameProcess.Refresh();
-                    Thread.Sleep(1);
+                    Thread.Sleep(100);
                 }
 
                 Log.Information("Game has exited.");
-                addonMgr.StopAddons();
+                addonMgrCancelTokenSource.Cancel();
+
+                if (addonMgr.IsRunning)
+                    addonMgr.StopAddons();
 
                 CleanUp();
 
@@ -819,6 +826,7 @@ namespace XIVLauncher.Windows
 
         private void CleanUp()
         {
+            Task.Run(PatchManager.UnInitializeAcquisition).Wait();
             _installer.Stop();
         }
 
@@ -930,7 +938,7 @@ namespace XIVLauncher.Windows
             var gateStatus = false;
             try
             {
-                gateStatus = _launcher.GetGateStatus();
+                gateStatus = Task.Run(() => _launcher.GetGateStatus()).Result;
             }
             catch
             {
@@ -1031,7 +1039,7 @@ namespace XIVLauncher.Windows
 
         private async void FakeStart_OnClick(object sender, RoutedEventArgs e)
         {
-            await StartGameAndAddon(new Launcher.LoginResult
+            StartGameAndAddon(new Launcher.LoginResult
             {
                 OauthLogin = new Launcher.OauthLoginResult
                 {
