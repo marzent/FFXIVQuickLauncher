@@ -40,8 +40,6 @@ namespace XIVLauncher.Game.Patch
 
     public class PatchManager
     {
-        public event EventHandler<bool> OnFinish;
-
         public const int MAX_DOWNLOADS_AT_ONCE = 4;
 
         private readonly CancellationTokenSource _cancelTokenSource = new();
@@ -51,6 +49,10 @@ namespace XIVLauncher.Game.Patch
         private readonly PatchInstaller _installer;
 
         public readonly IReadOnlyList<PatchDownload> Downloads;
+
+        public bool IsDone { get; private set; }
+
+        public bool IsSuccess { get; private set; }
 
         public int CurrentInstallIndex { get; private set; }
 
@@ -100,7 +102,8 @@ namespace XIVLauncher.Game.Patch
 
             if (Downloads.Any(x => x.Patch.Length > freeSpaceDownload))
             {
-                OnFinish?.Invoke(this, false);
+                IsSuccess = false;
+                IsDone = true;
 
                 MessageBox.Show(string.Format(Loc.Localize("FreeSpaceError", "There is not enough space on your drive to download patches.\n\nYou can change the location patches are downloaded to in the settings.\n\nRequired:{0}\nFree:{1}"), Util.BytesToString(Downloads.OrderByDescending(x => x.Patch.Length).First().Patch.Length), Util.BytesToString(freeSpaceDownload)), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
@@ -109,7 +112,8 @@ namespace XIVLauncher.Game.Patch
             // If the first 6 patches altogether are bigger than the patch drive, we might run out of space
             if (freeSpaceDownload < GetDownloadLength(6))
             {
-                OnFinish?.Invoke(this, false);
+                IsSuccess = false;
+                IsDone = true;
 
                 MessageBox.Show(string.Format(Loc.Localize("FreeSpaceErrorAll", "There is not enough space on your drive to download all patches.\n\nYou can change the location patches are downloaded to in the XIVLauncher settings.\n\nRequired:{0}\nFree:{1}"), Util.BytesToString(AllDownloadsLength), Util.BytesToString(freeSpaceDownload)), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
@@ -119,7 +123,8 @@ namespace XIVLauncher.Game.Patch
 
             if (freeSpaceGame < AllDownloadsLength)
             {
-                OnFinish?.Invoke(this, false);
+                IsSuccess = false;
+                IsDone = true;
 
                 MessageBox.Show(string.Format(Loc.Localize("FreeSpaceGameError", "There is not enough space on your drive to install patches.\n\nYou can change the location the game is installed to in the settings.\n\nRequired:{0}\nFree:{1}"), Util.BytesToString(AllDownloadsLength), Util.BytesToString(freeSpaceGame)), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
@@ -130,7 +135,8 @@ namespace XIVLauncher.Game.Patch
             {
                 CustomMessageBox.Show(Loc.Localize("PatchManNoInstaller", "The patch installer could not start correctly.\n\nIf you have denied access to it, please try again. If this issue persists, please contact us via Discord."), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
 
-                OnFinish?.Invoke(this, false);
+                IsSuccess = false;
+                IsDone = true;
                 return;
             }
             _installer.WaitOnHello();
@@ -406,7 +412,8 @@ namespace XIVLauncher.Game.Patch
             Log.Information("PATCHING finish");
             _installer.FinishInstall(_gamePath);
 
-            OnFinish?.Invoke(this, true);
+            IsSuccess = true;
+            IsDone = true;
         }
 
         private enum HashCheckResult
