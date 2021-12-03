@@ -6,6 +6,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Win32.SafeHandles;
+using System.Threading;
 
 namespace XIVLauncher.Game
 {
@@ -318,7 +319,7 @@ namespace XIVLauncher.Game
             }
         }
 
-        public static Process LaunchGame(string workingDir, string exePath, string arguments, IDictionary<string, string> envVars)
+        public static Process LaunchGame(string workingDir, string exePath, string arguments, IDictionary<string, string> envVars, Action<Process> beforeResume)
         {
             Process process;
 
@@ -393,9 +394,16 @@ namespace XIVLauncher.Game
                 DisableSeDebug(lpProcessInformation.hProcess);
 
                 process = new ExistingProcess(lpProcessInformation.hProcess);
+
+                beforeResume?.Invoke(process);
+
                 PInvoke.ResumeThread(lpProcessInformation.hThread);
 
-                process.WaitForInputIdle();
+                // Ensure that the game main window is prepared
+                do {
+                    process.WaitForInputIdle();
+                    Thread.Sleep(100);
+                } while (IntPtr.Zero == TryFindGameWindow(process));
 
                 if (PInvoke.GetSecurityInfo(
                     PInvoke.GetCurrentProcess(),
@@ -478,6 +486,29 @@ namespace XIVLauncher.Game
             }
 
             PInvoke.CloseHandle(TokenHandle);
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr FindWindowEx(IntPtr parentHandle, IntPtr hWndChildAfter, string className, IntPtr windowTitle);
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool IsWindowVisible(IntPtr hWnd);
+
+        private static IntPtr TryFindGameWindow(Process process)
+        {
+            IntPtr hwnd = IntPtr.Zero;
+            while (IntPtr.Zero != (hwnd = FindWindowEx(IntPtr.Zero, hwnd, "FFXIVGAME", IntPtr.Zero)))
+            {
+                GetWindowThreadProcessId(hwnd, out uint pid);
+
+                if (pid == process.Id && IsWindowVisible(hwnd))
+                {
+                    break;
+                }
+            }
+            return hwnd;
         }
     }
 }

@@ -59,7 +59,7 @@ namespace XIVLauncher.Windows.ViewModel
 
                 LoadingDialogCancelButtonVisibility = Visibility.Collapsed;
                 IsLoadingDialogOpen = true;
-                LoadingDialogMessage = Loc.Localize("LoadingDialogIsLoggingIn", "Logging in...");
+                LoadingDialogMessage = Loc.Localize("LoadingDialogIsLoggingIn", "Transmission in progress...");
 
                 IsLoggingIn = true;
 
@@ -393,7 +393,22 @@ namespace XIVLauncher.Windows.ViewModel
 
             var gameProcess = Launcher.LaunchGame(loginResult.UniqueId, loginResult.OauthLogin.Region,
                     loginResult.OauthLogin.MaxExpansion, App.Settings.SteamIntegrationEnabled,
-                    isSteam, App.Settings.AdditionalLaunchArgs, App.Settings.GamePath, App.Settings.IsDx11, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.EncryptArguments.GetValueOrDefault(false));
+                    isSteam, App.Settings.AdditionalLaunchArgs, App.Settings.GamePath, App.Settings.IsDx11, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.EncryptArguments.GetValueOrDefault(false),
+                    process => {
+                        if (App.Settings.InGameAddonLoadMethod == DalamudLoadMethod.EntryPoint)
+                        {
+                            if (App.Settings.InGameAddonEnabled && App.Settings.IsDx11)
+                            {
+                                var launcher = new DalamudLauncher(DalamudUpdater.Overlay, App.Settings.InGameAddonLoadMethod);
+                                launcher.Setup(process, App.Settings);
+                                launcher.Run();
+                            }
+                            else
+                            {
+                                Log.Warning("In-Game addon was not enabled (tried to load as entry point)");
+                            }
+                        }
+                    });
 
             if (gameProcess == null)
             {
@@ -414,16 +429,17 @@ namespace XIVLauncher.Windows.ViewModel
                     App.Settings.AddonList = new List<AddonEntry>();
 
                 var addons = App.Settings.AddonList.Where(x => x.IsEnabled).Select(x => x.Addon).Cast<IAddon>().ToList();
-
-                if (App.Settings.InGameAddonEnabled && App.Settings.IsDx11)
+                if (App.Settings.InGameAddonLoadMethod == DalamudLoadMethod.DllInject)
                 {
-                    addons.Add(new DalamudLauncher(DalamudUpdater.Overlay));
+                    if (App.Settings.InGameAddonEnabled && App.Settings.IsDx11)
+                    {
+                        addons.Add(new DalamudLauncher(DalamudUpdater.Overlay, App.Settings.InGameAddonLoadMethod));
+                    }
+                    else
+                    {
+                        Log.Warning("In-Game addon was not enabled (tried to load via DLL injection)");
+                    }
                 }
-                else
-                {
-                    Log.Warning("In-Game addon was not enabled.");
-                }
-
                 addonMgr.RunAddons(gameProcess, App.Settings, addons);
             }
             catch (Exception ex)
