@@ -96,12 +96,12 @@ namespace XIVLauncher.Windows.ViewModel
             AutoLaunchAddNewToolTipLoc =
                 Loc.Localize("AutoLaunchAddNewToolTip", "Add a new Auto-Start entry that allows you to launch any program.");
 
-            SettingsInGameLoc = Loc.Localize("SettingsInGame", "In-Game");
+            SettingsInGameLoc = Loc.Localize("SettingsInGame", "Dalamud");
             InGameAddonDescriptionLoc = Loc.Localize("InGameAddonDescription",
-                "These options affect the XIVLauncher in-game features. These features will be automatically\r\nenabled if you are running the DirectX 11 version of the game, the version of the game is\r\ncompatible, and the checkbox below is ticked.");
+                "These options affect the XIVLauncher in-game features, provided by Dalamud. These features will be automatically\r\nenabled if you are running the DirectX 11 version of the game, the version of the game is\r\ncompatible, and the checkbox below is ticked.");
             InGameAddonCommandHintLoc = Loc.Localize("InGameAddonCommandHint",
                 "When enabled, type \"/xlhelp\" in-game to see other available commands.");
-            InGameAddonEnabledCheckBoxLoc = Loc.Localize("InGameAddonEnabledCheckBox", "Enable in-game features");
+            InGameAddonEnabledCheckBoxLoc = Loc.Localize("InGameAddonEnabledCheckBox", "Enable Dalamud");
             InGameAddonChatSettingsLoc = Loc.Localize("ChatSettings", "Chat settings");
             InGameAddonDiscordBotTokenLoc = Loc.Localize("DiscordBotToken", "Discord Bot Token");
             InGameAddonHowLoc = Loc.Localize("HowToHint", "How do I set this up?");
@@ -115,6 +115,14 @@ namespace XIVLauncher.Windows.ViewModel
             InGameAddonInjectionDelayLoc = Loc.Localize("InGameAddonInjectionDelayLoc", "Addon Injection Delay");
             InGameAddonInjectionDelayDescriptionLoc = Loc.Localize("InGameAddonInjectionDelayDescriptionLoc",
                 "Delay the injection of the in-game addon. This allows you to hide it from e.g. OBS and Discord, since they will inject before it does.");
+
+            InGameAddonLoadMethodLoc = Loc.Localize("InGameAddonLoadMethodLoc",
+                "Choose how to load Dalamud.");
+            InGameAddonLoadMethodEntryPointLoc = Loc.Localize("InGameAddonLoadMethodEntryPointLoc",
+                "New: improves compatibility with certain other software and plugins that need to load early.");
+            InGameAddonLoadMethodDllInjectLoc = Loc.Localize("InGameAddonLoadMethodDllInjectLoc",
+                "Legacy: old version of the Dalamud injection system that may be more stable.");
+
             UniversalisHintLoc = Loc.Localize("UniversalisHint",
                 "Market board data provided in cooperation with Universalis.");
             UniversalisOptOutLoc = Loc.Localize("UniversalisOptOut",
@@ -188,6 +196,9 @@ namespace XIVLauncher.Windows.ViewModel
         public string InGameAddonChatDelayDescriptionLoc { get; private set; }
         public string InGameAddonInjectionDelayLoc { get; private set; }
         public string InGameAddonInjectionDelayDescriptionLoc { get; private set; }
+        public string InGameAddonLoadMethodLoc { get; private set; }
+        public string InGameAddonLoadMethodEntryPointLoc { get; private set; }
+        public string InGameAddonLoadMethodDllInjectLoc { get; private set; }
         public string UniversalisHintLoc { get; private set; }
         public string UniversalisOptOutLoc { get; private set; }
 
