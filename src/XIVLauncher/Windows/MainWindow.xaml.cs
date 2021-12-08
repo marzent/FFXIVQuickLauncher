@@ -208,6 +208,10 @@ namespace XIVLauncher.Windows
             // Set the default patch acquisition method
             App.Settings.PatchAcquisitionMethod ??=
                 EnvironmentSettings.IsWine ? AcquisitionMethod.NetDownloader : AcquisitionMethod.Aria;
+            // Set the default Dalamud injection method
+            App.Settings.InGameAddonLoadMethod ??= EnvironmentSettings.IsWine
+                ? DalamudLoadMethod.DllInject
+                : DalamudLoadMethod.EntryPoint;
 
             // Clean up invalid addons
             if (App.Settings.AddonList != null)
@@ -272,8 +276,9 @@ namespace XIVLauncher.Windows
                 }
                 catch (Exception ex)
                 {
-                    new ErrorWindow(ex, Loc.Localize("CheckLoginInfo", "Additionally, please check your login information or try again."), "AutoLogin")
-                        .ShowDialog();
+                    ErrorWindow.Show(ex,
+                        Loc.Localize("CheckLoginInfo",
+                            "Additionally, please check your login information or try again."), "AutoLogin");
                     App.Settings.AutologinEnabled = false;
                 }
             }
