@@ -220,6 +220,8 @@ namespace XIVLauncher.Windows
             App.Settings.EncryptArguments ??= true;
             App.Settings.AskBeforePatchInstall ??= true;
 
+            App.Settings.DpiAwareness ??= DpiAwareness.Unaware;
+
             var gateStatus = false;
             try
             {
