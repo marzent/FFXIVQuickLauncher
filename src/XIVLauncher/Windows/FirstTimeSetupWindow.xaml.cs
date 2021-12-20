@@ -37,8 +37,8 @@ namespace XIVLauncher.Windows
             {
 #endif
                 CustomMessageBox.Show(
-                    $"You're running an unsupported version of XIVLauncher.\n\nThis can be unsafe and a danger to your SE account. If you have not gotten this unsupported version on purpose, please reinstall a clean version from {App.RepoUrl}/releases and contact us.",
-                    "XIVLauncher Problem", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                    $"You're running a version of XIVLauncher modified for macOS.\n\n If you are having authentication/update trouble, please do not conatact the goatplace discord but rather https://discord.gg/5wsgJePv.",
+                    "XIVLauncher Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 #if !XL_NOAUTOUPDATE
             }
 #endif
