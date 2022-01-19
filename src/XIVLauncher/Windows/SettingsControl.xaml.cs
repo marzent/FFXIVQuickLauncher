@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using CheapLoc;
+using MaterialDesignThemes.Wpf.Transitions;
 using Serilog;
 using XIVLauncher.Addon;
 using XIVLauncher.Cache;
@@ -16,6 +17,8 @@ using XIVLauncher.Game;
 using XIVLauncher.Settings;
 using Newtonsoft.Json.Linq;
 using XIVLauncher.Game.Patch.Acquisition;
+using XIVLauncher.PatchInstaller;
+using XIVLauncher.Support;
 using XIVLauncher.Windows.ViewModel;
 
 namespace XIVLauncher.Windows
@@ -30,6 +33,8 @@ namespace XIVLauncher.Windows
         private SettingsControlViewModel ViewModel => DataContext as SettingsControlViewModel;
 
         private const int BYTES_TO_MB = 1048576;
+
+        private bool _hasTriggeredLogo = false;
 
         public SettingsControl()
         {
@@ -103,6 +108,13 @@ namespace XIVLauncher.Windows
 
         private void AcceptButton_Click(object sender, RoutedEventArgs e)
         {
+            if (ViewModel.GamePath == ViewModel.PatchPath)
+            {
+                CustomMessageBox.Show(Loc.Localize("SettingsGamePatchPathError", "Game and patch download paths cannot be the same.\nPlease make sure to choose distinct game and patch download paths."), "XIVLauncher Error", MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
             App.Settings.GamePath = !string.IsNullOrEmpty(ViewModel.GamePath) ? new DirectoryInfo(ViewModel.GamePath) : null;
             App.Settings.PatchPath = !string.IsNullOrEmpty(ViewModel.PatchPath) ? new DirectoryInfo(ViewModel.PatchPath) : null;
             App.Settings.IsDx11 = Dx11RadioButton.IsChecked == true;
@@ -142,6 +154,8 @@ namespace XIVLauncher.Windows
             SettingsDismissed?.Invoke(this, null);
 
             App.Settings.SpeedLimitBytes = (long) (SpeedLimiterUpDown.Value * BYTES_TO_MB);
+
+            Transitioner.MoveNextCommand.Execute(null, null);
         }
 
         private void GitHubButton_OnClick(object sender, RoutedEventArgs e)
@@ -243,6 +257,12 @@ namespace XIVLauncher.Windows
             progress.ProgressChanged += (sender, checkProgress) => window.UpdateProgress(checkProgress);
 
             var gamePath = new DirectoryInfo(ViewModel.GamePath);
+
+            if (Repository.Ffxiv.IsBaseVer(gamePath))
+            {
+                CustomMessageBox.Show(Loc.Localize("IntegrityCheckBase", "The game is not installed to the path you specified.\nPlease install the game before running an integrity check."), "XIVLauncher");
+                return;
+            }
 
             Task.Run(async () => await IntegrityCheck.CompareIntegrityAsync(progress, gamePath)).ContinueWith(task =>
             {
@@ -478,7 +498,17 @@ namespace XIVLauncher.Windows
 
         private void GamePathEntry_OnTextChanged(object sender, TextChangedEventArgs e)
         {
-            GamePathSafeguardText.Visibility = !Util.LetChoosePath(ViewModel.GamePath) ? Visibility.Visible : Visibility.Collapsed;
+            var isLetChoose = false;
+            try
+            {
+                isLetChoose = Util.LetChoosePath(ViewModel.GamePath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Could not check game path");
+            }
+
+            GamePathSafeguardText.Visibility = !isLetChoose ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LicenseText_OnMouseUp(object sender, MouseButtonEventArgs e)
@@ -489,12 +519,29 @@ namespace XIVLauncher.Windows
         private void Logo_OnMouseUp(object sender, MouseButtonEventArgs e)
         {
 #if DEBUG
-            var fts = new FirstTimeSetup();
-            fts.ShowDialog();
+            var result = MessageBox.Show("Yes: FTS\nNo: Save troubleshooting\nCancel: Cancel", "XIVLauncher Expert Debugging Interface", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            switch (result)
+            {
+                case MessageBoxResult.Yes:
+                    var fts = new FirstTimeSetup();
+                    fts.ShowDialog();
 
-            Log.Debug($"WasCompleted: {fts.WasCompleted}");
+                    Log.Debug($"WasCompleted: {fts.WasCompleted}");
 
-            this.ReloadSettings();
+                    this.ReloadSettings();
+                    break;
+                case MessageBoxResult.No:
+                    MessageBox.Show(PackGenerator.SavePack());
+                    break;
+                case MessageBoxResult.Cancel:
+                    return;
+            }
+#else
+            if (_hasTriggeredLogo)
+                return;
+
+            Process.Start("explorer.exe", $"/select, \"{PackGenerator.SavePack()}\"");
+            _hasTriggeredLogo = true;
 #endif
         }
 

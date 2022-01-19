@@ -1,20 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Documents;
 using Newtonsoft.Json;
 using NuGet;
 using Serilog;
 using XIVLauncher.Cache;
-using XIVLauncher.PatchInstaller;
 using XIVLauncher.Settings;
 using XIVLauncher.Windows;
 
@@ -23,6 +18,7 @@ namespace XIVLauncher.Dalamud
     static class DalamudUpdater
     {
         public static DownloadState State { get; private set; } = DownloadState.Unknown;
+        public static bool IsStaging { get; private set; } = false;
 
         private static FileInfo _runnerInternal;
         public static FileInfo Runner
@@ -87,6 +83,17 @@ namespace XIVLauncher.Dalamud
         private static string GetBetaPath(DalamudSettings settings) =>
             string.IsNullOrEmpty(settings.DalamudBetaKind) ? "stg/" : $"{settings.DalamudBetaKind}/";
 
+        private static (DalamudVersionInfo release, DalamudVersionInfo staging) GetVersionInfo(WebClient client, DalamudSettings settings)
+        {
+            var versionInfoJsonRelease = client.DownloadString(DalamudLauncher.REMOTE_BASE + "version");
+            var versionInfoJsonStaging = client.DownloadString(DalamudLauncher.REMOTE_BASE + GetBetaPath(settings) + "version");
+
+            var versionInfoRelease = JsonConvert.DeserializeObject<DalamudVersionInfo>(versionInfoJsonRelease);
+            var versionInfoStaging = JsonConvert.DeserializeObject<DalamudVersionInfo>(versionInfoJsonStaging);
+
+            return (versionInfoRelease, versionInfoStaging);
+        }
+
         private static void UpdateDalamud()
         {
             using var client = new WebClient();
@@ -96,23 +103,31 @@ namespace XIVLauncher.Dalamud
             // GitHub requires TLS 1.2, we need to hardcode this for Windows 7
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-            var versionInfoJson = client.DownloadString(DalamudLauncher.REMOTE_BASE + (settings.DoDalamudTest ? GetBetaPath(settings) : string.Empty) + "version");
+            var (versionInfoRelease, versionInfoStaging) = GetVersionInfo(client, settings);
 
-            var remoteVersionInfo = JsonConvert.DeserializeObject<DalamudVersionInfo>(versionInfoJson);
+            var remoteVersionInfo = versionInfoRelease;
+            if (versionInfoStaging.Key == settings.DalamudBetaKey)
+            {
+                remoteVersionInfo = versionInfoStaging;
+                IsStaging = true;
+                Log.Information("[DUPDATE] Using staging version {Kind} with key {Key} ({Hash})", settings.DalamudBetaKind, settings.DalamudBetaKey, remoteVersionInfo.AssemblyVersion);
+            }
+            else
+            {
+                Log.Information("[DUPDATE] Using release version ({Hash})", remoteVersionInfo.AssemblyVersion);
+            }
+
+            var versionInfoJson = JsonConvert.SerializeObject(remoteVersionInfo);
 
             var addonPath = new DirectoryInfo(Path.Combine(Paths.RoamingPath, "addon", "Hooks"));
             var currentVersionPath = new DirectoryInfo(Path.Combine(addonPath.FullName, remoteVersionInfo.AssemblyVersion));
             var runtimePath = new DirectoryInfo(Path.Combine(Paths.RoamingPath, "runtime"));
             var runtimePaths = new DirectoryInfo[]
             {
-                new DirectoryInfo(Path.Combine(runtimePath.FullName, "host", "fxr", remoteVersionInfo.RuntimeVersion)),
-                new DirectoryInfo(Path.Combine(runtimePath.FullName, "shared", "Microsoft.NETCore.App", remoteVersionInfo.RuntimeVersion)),
-                new DirectoryInfo(Path.Combine(runtimePath.FullName, "shared", "Microsoft.WindowsDesktop.App", remoteVersionInfo.RuntimeVersion)),
+                new(Path.Combine(runtimePath.FullName, "host", "fxr", remoteVersionInfo.RuntimeVersion)),
+                new(Path.Combine(runtimePath.FullName, "shared", "Microsoft.NETCore.App", remoteVersionInfo.RuntimeVersion)),
+                new(Path.Combine(runtimePath.FullName, "shared", "Microsoft.WindowsDesktop.App", remoteVersionInfo.RuntimeVersion)),
             };
-
-            AssetDirectory = new DirectoryInfo(Path.Combine(Paths.RoamingPath, "dalamudAssets"));
-
-            Log.Information("[DUPDATE] Now starting for Dalamud {0}", remoteVersionInfo.AssemblyVersion);
 
             if (!currentVersionPath.Exists || !IsIntegrity(currentVersionPath))
             {
@@ -122,7 +137,7 @@ namespace XIVLauncher.Dalamud
 
                 try
                 {
-                    Download(currentVersionPath, settings);
+                    Download(currentVersionPath, settings, IsStaging);
                     CleanUpOld(addonPath, remoteVersionInfo.AssemblyVersion);
 
                     // This is a good indicator that we should clear the UID cache
@@ -169,12 +184,15 @@ namespace XIVLauncher.Dalamud
             {
                 SetOverlayProgress(DalamudLoadingOverlay.DalamudLoadingProgress.Assets);
 
-                if (!AssetManager.EnsureAssets(AssetDirectory))
+                var assetBase = new DirectoryInfo(Path.Combine(Paths.RoamingPath, "dalamudAssets"));
+                if (!AssetManager.TryEnsureAssets(assetBase, out var assetsDir))
                 {
                     Log.Information("[DUPDATE] Assets not ensured, bailing out...");
                     State = DownloadState.Failed;
                     return;
                 }
+
+                AssetDirectory = assetsDir;
             }
             catch (Exception ex)
             {
@@ -185,7 +203,7 @@ namespace XIVLauncher.Dalamud
 
             if (!IsIntegrity(currentVersionPath))
             {
-                Log.Error("[DUPDATE] Integrity check failed.");
+                Log.Error("[DUPDATE] Integrity check failed after ensurement.");
 
                 State = DownloadState.NoIntegrity;
                 return;
@@ -209,10 +227,34 @@ namespace XIVLauncher.Dalamud
                 files.First(x => x.Name == "Dalamud.Injector.exe").OpenRead().ReadAllBytes();
                 files.First(x => x.Name == "Dalamud.dll").OpenRead().ReadAllBytes();
                 files.First(x => x.Name == "ImGuiScene.dll").OpenRead().ReadAllBytes();
+
+                var hashesPath = Path.Combine(addonPath.FullName, "hashes.json");
+                if (!File.Exists(hashesPath))
+                {
+                    Log.Error("[DUPDATE] No hashes.json");
+                    return false;
+                }
+
+                var hashes = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(hashesPath));
+                foreach (var hash in hashes)
+                {
+                    var file = Path.Combine(addonPath.FullName, hash.Key);
+                    using var fileStream = File.OpenRead(file);
+                    using var md5 = MD5.Create();
+
+                    var hashed = BitConverter.ToString(md5.ComputeHash(fileStream)).ToUpperInvariant().Replace("-", string.Empty);
+                    if (hashed != hash.Value)
+                    {
+                        Log.Error("[DUPDATE] Integrity check failed for {0} ({1} - {2})", file, hash.Value, hashed);
+                        return false;
+                    }
+
+                    Log.Verbose("[DUPDATE] Integrity check OK for {0} ({1})", file, hashed);
+                }
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[DUPDATE] No dalamud integrity.");
+                Log.Error(ex, "[DUPDATE] No dalamud integrity");
                 return false;
             }
 
@@ -245,7 +287,7 @@ namespace XIVLauncher.Dalamud
             File.WriteAllText(Path.Combine(addonPath.FullName, "version.json"), info);
         }
 
-        private static void Download(DirectoryInfo addonPath, DalamudSettings settings)
+        private static void Download(DirectoryInfo addonPath, DalamudSettings settings, bool isStaging)
         {
             // Ensure directory exists
             if (!addonPath.Exists)
@@ -263,7 +305,7 @@ namespace XIVLauncher.Dalamud
             if (File.Exists(downloadPath))
                 File.Delete(downloadPath);
 
-            client.DownloadFile(DalamudLauncher.REMOTE_BASE + (settings.DoDalamudTest ? GetBetaPath(settings) : string.Empty) + "latest.zip", downloadPath);
+            client.DownloadFile(DalamudLauncher.REMOTE_BASE + (isStaging ? GetBetaPath(settings) : string.Empty) + "latest.zip", downloadPath);
             ZipFile.ExtractToDirectory(downloadPath, addonPath.FullName);
 
             File.Delete(downloadPath);

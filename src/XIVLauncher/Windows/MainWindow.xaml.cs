@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -10,21 +9,16 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using CheapLoc;
-using MaterialDesignThemes.Wpf;
 using Serilog;
 using XIVLauncher.Accounts;
-using XIVLauncher.Addon;
 using XIVLauncher.Cache;
 using XIVLauncher.Dalamud;
 using XIVLauncher.Game;
-using XIVLauncher.Game.Patch;
 using XIVLauncher.Game.Patch.Acquisition;
-using XIVLauncher.PatchInstaller;
-using XIVLauncher.PatchInstaller.PatcherIpcMessages;
 using XIVLauncher.Settings;
+using XIVLauncher.Support;
 using XIVLauncher.Windows.ViewModel;
 using Timer = System.Timers.Timer;
 
@@ -193,6 +187,8 @@ namespace XIVLauncher.Windows
             }
         }
 
+        private const int CURRENT_VERSION_LEVEL = 1;
+
         public void Initialize()
         {
 #if DEBUG
@@ -222,17 +218,56 @@ namespace XIVLauncher.Windows
 
             App.Settings.DpiAwareness ??= DpiAwareness.Unaware;
 
-            var gateStatus = false;
-            try
+            var versionLevel = App.Settings.VersionUpgradeLevel.GetValueOrDefault(0);
+            while (versionLevel < CURRENT_VERSION_LEVEL)
             {
-                gateStatus = Task.Run(() => _launcher.GetGateStatus()).Result;
-            }
-            catch
-            {
-                // ignored
+                switch (versionLevel)
+                {
+                    case 0:
+                        // Check for RTSS & Special K injectors
+                        try
+                        {
+                            var hasRtss = Process.GetProcesses().Any(x =>
+                                x.ProcessName.ToLowerInvariant().Contains("rtss") ||
+                                x.ProcessName.ToLowerInvariant().Contains("skifsvc64"));
+
+                            if (hasRtss)
+                            {
+                                App.Settings.DalamudInjectionDelayMs = 4000;
+                                Log.Information("RTSS/SpecialK detected, setting delay");
+                            }
+                        }
+                        catch(Exception ex)
+                        {
+                            Log.Error(ex, "Could not check for RTSS/SpecialK");
+                        }
+
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+                versionLevel++;
             }
 
-            if (!gateStatus) WorldStatusPackIcon.Foreground = new SolidColorBrush(Color.FromRgb(242, 24, 24));
+            App.Settings.VersionUpgradeLevel = versionLevel;
+
+            var worldStatusBrushOk = WorldStatusPackIcon.Foreground;
+            // grey out world status icon while deferred check is running
+            WorldStatusPackIcon.Foreground = new SolidColorBrush(Color.FromRgb(38, 38, 38));
+
+            _launcher.GetGateStatus().ContinueWith((resultTask) =>
+            {
+                try
+                {
+                    var brushToSet = resultTask.Result ? worldStatusBrushOk : null;
+                    Dispatcher.InvokeAsync(() =>  WorldStatusPackIcon.Foreground = brushToSet ?? new SolidColorBrush(Color.FromRgb(242, 24, 24)));
+                }
+                catch
+                {
+                    // ignored
+                }
+            });
 
             var version = Util.GetAssemblyVersion();
             if (App.Settings.LastVersion != version)
@@ -305,7 +340,11 @@ namespace XIVLauncher.Windows
                 SettingsControl.ReloadSettings();
             }
 
-            Task.Run(SetupHeadlines);
+            Task.Run(async () =>
+            {
+                await SetupHeadlines();
+                Troubleshooting.LogTroubleshooting();
+            });
 
             Log.Information("MainWindow initialized.");
 
@@ -400,7 +439,7 @@ namespace XIVLauncher.Windows
 
             _maintenanceQueueTimer = new Timer
             {
-                Interval = 15000
+                Interval = 20000
             };
 
             _maintenanceQueueTimer.Elapsed += OnMaintenanceQueueTimerEvent;

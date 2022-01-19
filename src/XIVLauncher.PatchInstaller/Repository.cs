@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Threading;
-using Serilog;
 
 namespace XIVLauncher.PatchInstaller
 {
@@ -70,7 +66,8 @@ namespace XIVLauncher.PatchInstaller
             if (!verFile.Exists)
                 return PatcherMain.BASE_GAME_VERSION;
 
-            return File.ReadAllText(verFile.FullName);
+            var ver =  File.ReadAllText(verFile.FullName);
+            return string.IsNullOrWhiteSpace(ver) ? PatcherMain.BASE_GAME_VERSION : ver;
         }
 
         public static void SetVer(this Repository repo, DirectoryInfo gamePath, string newVer, bool isBck = false)
@@ -80,7 +77,15 @@ namespace XIVLauncher.PatchInstaller
             if (!verFile.Directory.Exists)
                 verFile.Directory.Create();
 
-            File.WriteAllText(verFile.FullName, newVer, Encoding.ASCII);
+            using var fileStream = verFile.Open(FileMode.Create, FileAccess.Write, FileShare.None);
+            var buffer = Encoding.ASCII.GetBytes(newVer);
+            fileStream.Write(buffer, 0, buffer.Length);
+            fileStream.Flush();
+        }
+
+        public static bool IsBaseVer(this Repository repo, DirectoryInfo gamePath)
+        {
+            return repo.GetVer(gamePath) == PatcherMain.BASE_GAME_VERSION;
         }
 
         // TODO

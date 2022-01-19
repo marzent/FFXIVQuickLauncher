@@ -10,10 +10,12 @@ using CheapLoc;
 using Config.Net;
 using Newtonsoft.Json;
 using Serilog;
+using Serilog.Events;
 using XIVLauncher.Dalamud;
 using XIVLauncher.Game;
 using XIVLauncher.Settings;
 using XIVLauncher.Settings.Parsers;
+using XIVLauncher.Support;
 using XIVLauncher.Windows;
 
 namespace XIVLauncher
@@ -37,7 +39,16 @@ namespace XIVLauncher
 
         public App()
         {
-            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+            // wine does not support WPF with HW rendering, so switch to software only mode
+            try
+            {
+                if ( EnvironmentSettings.IsWine )
+                    RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+            }
+            catch
+            {
+                // ignored
+            }
 
             // TODO: Use a real command line parser
             foreach (var arg in Environment.GetCommandLineArgs())
@@ -45,33 +56,40 @@ namespace XIVLauncher
                 if (arg.StartsWith("--roamingPath="))
                 {
                     Paths.RoamingPath = arg.Substring(14);
-                    break;
                 }
-
-                if (arg.StartsWith("--dalamudRunner="))
+                else if (arg.StartsWith("--dalamudRunner="))
                 {
                     DalamudUpdater.RunnerOverride = new FileInfo(arg.Substring(16));
-                    break;
                 }
             }
 
             var release = $"xivlauncher-{Util.GetAssemblyVersion()}-{Util.GetGitHash()}";
 
-            Log.Logger = new LoggerConfiguration()
-                .WriteTo.Async(a =>
-                    a.File(Path.Combine(Paths.RoamingPath, "output.log")))
+            try
+            {
+                Log.Logger = new LoggerConfiguration()
+                    .WriteTo.Async(a =>
+                        a.File(Path.Combine(Paths.RoamingPath, "output.log")))
+                    .WriteTo.Sink(SerilogEventSink.Instance)
 #if DEBUG
-                .WriteTo.Debug()
-                .MinimumLevel.Verbose()
+                    .WriteTo.Debug()
+                    .MinimumLevel.Verbose()
 #else
-                .MinimumLevel.Information()
+                    .MinimumLevel.Information()
 #endif
-                .CreateLogger();
+                    .CreateLogger();
 
 #if !DEBUG
-            AppDomain.CurrentDomain.UnhandledException += EarlyInitExceptionHandler;
-            TaskScheduler.UnobservedTaskException += TaskSchedulerOnUnobservedTaskException;
+                AppDomain.CurrentDomain.UnhandledException += EarlyInitExceptionHandler;
+                TaskScheduler.UnobservedTaskException += TaskSchedulerOnUnobservedTaskException;
 #endif
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not set up logging. Please report this error.\n\n" + ex.Message, "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            SerilogEventSink.Instance.LogLine += OnSerilogLogLine;
 
             try
             {
@@ -140,6 +158,14 @@ namespace XIVLauncher
                 }
             }
 #endif
+        }
+
+        private static void OnSerilogLogLine(object sender, (string Line, LogEventLevel Level, DateTimeOffset TimeStamp, Exception? Exception) e)
+        {
+            if (e.Exception == null)
+                return;
+
+            Troubleshooting.LogException(e.Exception, e.Line);
         }
 
         private void SetupSettings()

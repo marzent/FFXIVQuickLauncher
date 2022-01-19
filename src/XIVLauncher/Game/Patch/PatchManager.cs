@@ -44,9 +44,12 @@ namespace XIVLauncher.Game.Patch
 
         private readonly CancellationTokenSource _cancelTokenSource = new();
 
+        private readonly Repository _repo;
         private readonly DirectoryInfo _gamePath;
         private readonly DirectoryInfo _patchStore;
         private readonly PatchInstaller _installer;
+        private readonly Launcher _launcher;
+        private readonly string _sid;
 
         public readonly IReadOnlyList<PatchDownload> Downloads;
 
@@ -75,13 +78,16 @@ namespace XIVLauncher.Game.Patch
 
         public long AllDownloadsLength => GetDownloadLength();
 
-        public PatchManager(IEnumerable<PatchListEntry> patches, DirectoryInfo gamePath, DirectoryInfo patchStore, PatchInstaller installer)
+        public PatchManager(Repository repo, IEnumerable<PatchListEntry> patches, DirectoryInfo gamePath, DirectoryInfo patchStore, PatchInstaller installer, Launcher launcher, string sid)
         {
             Debug.Assert(patches != null, "patches != null ASSERTION FAILED");
 
+            _repo = repo;
             _gamePath = gamePath;
             _patchStore = patchStore;
             _installer = installer;
+            _launcher = launcher;
+            _sid = sid;
 
             if (!_patchStore.Exists)
                 _patchStore.Create();
@@ -187,7 +193,13 @@ namespace XIVLauncher.Game.Patch
         {
             var outFile = GetPatchFile(download.Patch);
 
-            Log.Information("Downloading patch {0} at {1} to {2}", download.Patch.VersionId, download.Patch.Url, outFile.FullName);
+            var realUrl = download.Patch.Url;
+            if (_repo != Repository.Boot && false) // Disabled for now, waiting on SE to patch this
+            {
+                realUrl = await _launcher.GenPatchToken(download.Patch.Url, _sid);
+            }
+
+            Log.Information("Downloading patch {0} at {1} to {2}", download.Patch.VersionId, realUrl, outFile.FullName);
 
             Actives[index] = download;
 
@@ -235,12 +247,15 @@ namespace XIVLauncher.Game.Patch
 
             acquisition.Complete += (sender, args) =>
             {
+                var dlFailureLoc = Loc.Localize("PatchManDlFailure",
+                    "XIVLauncher could not verify the downloaded game files. Please restart and try again.\n\nThis usually indicates a problem with your internet connection.\nIf this error persists, try using a VPN set to Japan.\n\nContext: {0}\n{1}");
+
                 if (args == AcquisitionResult.Error)
                 {
                     Log.Error("Download failed for {0}", download.Patch.VersionId);
 
                     CancelAllDownloads();
-                    CustomMessageBox.Show(string.Format(Loc.Localize("PatchManDlFailure", "XIVLauncher could not verify the downloaded game files.\n\nThis usually indicates a problem with your internet connection.\nIf this error occurs again, try using a VPN set to Japan.\n\nContext: {0}\n{1}"), "Problem", download.Patch.VersionId), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBox.Show(string.Format(dlFailureLoc, "Problem", download.Patch.VersionId), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     Environment.Exit(0);
                     return;
                 }
@@ -268,7 +283,7 @@ namespace XIVLauncher.Game.Patch
                 {
                     CancelAllDownloads();
                     Log.Error("IsHashCheckPass failed for {0} after DL", download.Patch.VersionId);
-                    CustomMessageBox.Show(string.Format(Loc.Localize("PatchManDlFailure", "XIVLauncher could not verify the downloaded game files.\n\nThis usually indicates a problem with your internet connection.\nIf this error occurs again, try using a VPN set to Japan.\n\nContext: {0}\n{1}"), $"IsHashCheckPass({checkResult})", download.Patch.VersionId), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBox.Show(string.Format(dlFailureLoc, $"IsHashCheckPass({checkResult})", download.Patch.VersionId), "XIVLauncher Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     outFile.Delete();
                     Environment.Exit(0);
                     return;
@@ -286,7 +301,7 @@ namespace XIVLauncher.Game.Patch
 
             DownloadServices[index] = acquisition;
 
-            await acquisition.StartDownloadAsync(download.Patch, outFile);
+            await acquisition.StartDownloadAsync(realUrl, outFile);
         }
 
         public void CancelAllDownloads()
@@ -438,7 +453,7 @@ namespace XIVLauncher.Game.Patch
                 return HashCheckResult.BadLength;
             }
 
-            var parts = (int) Math.Round((double) patchListEntry.Length / patchListEntry.HashBlockSize);
+            var parts = (int) Math.Ceiling((double) patchListEntry.Length / patchListEntry.HashBlockSize);
             var block = new byte[patchListEntry.HashBlockSize];
 
             for (var i = 0; i < parts; i++)

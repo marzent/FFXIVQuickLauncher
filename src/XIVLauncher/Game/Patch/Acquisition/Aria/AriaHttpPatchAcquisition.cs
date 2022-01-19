@@ -18,8 +18,6 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
         private static AriaManager manager;
         private static long maxDownloadSpeed;
 
-        public const int DEFAULT_ARIA_SERVER_PORT = 0xff45;
-
         public static async Task InitializeAsync(long maxDownloadSpeed)
         {
             AriaHttpPatchAcquisition.maxDownloadSpeed = maxDownloadSpeed;
@@ -46,7 +44,7 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
 
                 var ariaPath = Path.Combine(Paths.ResourcesPath, "aria2c-xl.exe");
 
-                var ariaPort = Util.GetAvailablePort(DEFAULT_ARIA_SERVER_PORT);
+                var ariaPort = Util.GetAvailablePort();
                 var ariaHost = $"http://localhost:{ariaPort}/jsonrpc";
 
                 var ariaArgs =
@@ -97,11 +95,11 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
             }
         }
 
-        public override async Task StartDownloadAsync(PatchListEntry patch, FileInfo outFile)
+        public override async Task StartDownloadAsync(string url, FileInfo outFile)
         {
             await manager.AddUri(new List<string>()
             {
-                patch.Url
+                url
             }, new Dictionary<string, string>()
             {
                 {"user-agent", "FFXIV PATCH CLIENT"},
@@ -116,14 +114,14 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
             {
                 if (t.IsFaulted || t.IsCanceled)
                 {
-                    Log.Error(t.Exception, $"[ARIA] Could not send download RPC for {patch}");
+                    Log.Error(t.Exception, $"[ARIA] Could not send download RPC for {url}");
                     OnComplete(AcquisitionResult.Error);
                     return;
                 }
 
                 var gid = t.Result;
 
-                Log.Verbose($"[ARIA] GID# {gid} for {patch}");
+                Log.Verbose($"[ARIA] GID# {gid} for {url}");
 
                 var _ = Task.Run(async () =>
                 {
@@ -135,7 +133,7 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
 
                             if (status.Status == "complete")
                             {
-                                Log.Verbose($"[ARIA] GID# {gid} for {patch} SUCCESS");
+                                Log.Verbose($"[ARIA] GID# {gid} for {url} SUCCESS");
 
                                 OnComplete(AcquisitionResult.Success);
                                 return;
@@ -143,7 +141,7 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
 
                             if (status.Status == "removed")
                             {
-                                Log.Verbose($"[ARIA] GID# {gid} for {patch} CANCEL");
+                                Log.Verbose($"[ARIA] GID# {gid} for {url} CANCEL");
 
                                 OnComplete(AcquisitionResult.Cancelled);
                                 return;
@@ -151,7 +149,7 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
 
                             if (status.Status == "error")
                             {
-                                Log.Verbose($"[ARIA] GID# {gid} for {patch} FAULTED");
+                                Log.Verbose($"[ARIA] GID# {gid} for {url} FAULTED");
 
                                 OnComplete(AcquisitionResult.Error);
                                 return;
@@ -165,7 +163,7 @@ namespace XIVLauncher.Game.Patch.Acquisition.Aria
                         }
                         catch (Exception ex)
                         {
-                            Log.Error(ex, $"[ARIA] Failed to get status for GID# {gid} ({patch})");
+                            Log.Error(ex, $"[ARIA] Failed to get status for GID# {gid} ({url})");
                         }
 
                         Thread.Sleep(500);

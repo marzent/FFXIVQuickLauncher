@@ -5,13 +5,19 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
+using Microsoft.Win32;
+using Serilog;
+using XIVLauncher.Game;
+using XIVLauncher.PatchInstaller;
 
 namespace XIVLauncher
 {
@@ -61,7 +67,7 @@ namespace XIVLauncher
         /// </summary>
         public static bool IsRegionNorthAmerica()
         {
-            return RegionInfo.CurrentRegion.ThreeLetterISORegionName is "USA" or "MEX" or "CAN";
+            return RegionInfo.CurrentRegion.TwoLetterISORegionName is "US" or "MX" or "CA";
         }
 
         public static string GetAssemblyVersion()
@@ -100,21 +106,105 @@ namespace XIVLauncher
 
         private static string DefaultPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "SquareEnix\\FINAL FANTASY XIV - A Realm Reborn");
 
-        private static readonly string[] PathsToTry = DriveInfo.GetDrives().Select(drive => $"{drive.Name}SquareEnix\\FINAL FANTASY XIV - A Realm Reborn").Concat(new List<string>
+        private static string[] GetCommonPaths()
         {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam\\steamapps\\common\\FINAL FANTASY XIV Online"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam\\steamapps\\common\\FINAL FANTASY XIV - A Realm Reborn"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "FINAL FANTASY XIV - A Realm Reborn"),
-            DefaultPath
-        }).ToArray();
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var paths = new List<string>();
+            var drives = DriveInfo.GetDrives().Select(info => info.Name);
+
+            var commonPaths = new string[]
+            {
+                "Steam\\steamapps\\common\\FINAL FANTASY XIV Online",
+                "Steam\\steamapps\\common\\FINAL FANTASY XIV - A Realm Reborn",
+                "SquareEnix\\FINAL FANTASY XIV - A Realm Reborn",
+                "Square Enix\\FINAL FANTASY XIV - A Realm Reborn",
+                "Games\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn",
+                "Games\\Square Enix\\FINAL FANTASY XIV - A Realm Reborn",
+            };
+
+            foreach (var commonPath in commonPaths)
+            {
+                paths.Add(Path.Combine(programFiles, commonPath));
+
+                foreach (var drive in drives)
+                {
+                    paths.Add(Path.Combine(drive, commonPath));
+                    paths.Add(Path.Combine(drive, "Program Files (x86)", commonPath));
+                }
+            }
+
+            paths.Add(Path.Combine(programFiles, "FINAL FANTASY XIV - A Realm Reborn"));
+
+            return paths.ToArray();
+        }
+
+        private static readonly int[] ValidSteamAppIds = new int[] {
+            39210 /* Paid version */,
+            312060, /* Free trial version */ 
+        };
 
         public static string TryGamePaths()
         {
-            foreach (var path in PathsToTry)
-                if (Directory.Exists(path) && IsValidFfxivPath(path))
-                    return path;
+            try
+            {
+                var foundVersions = new Dictionary<string, SeVersion>();
 
-            return DefaultPath;
+                foreach (var path in GetCommonPaths())
+                {
+                    if (!Directory.Exists(path) || !IsValidFfxivPath(path) || foundVersions.ContainsKey(path))
+                        continue;
+
+                    var baseVersion = Repository.Ffxiv.GetVer(new DirectoryInfo(path));
+                    foundVersions.Add(path, SeVersion.Parse(baseVersion));
+                }
+                
+                foreach (var registryView in new RegistryView[] { RegistryView.Registry32, RegistryView.Registry64 })
+                {
+                    using (var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, registryView)) 
+                    {
+                        // Should return "C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn\boot\ffxivboot.exe" if installed with default options.
+                        using (var subkey = hklm.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{2B41E132-07DF-4925-A3D3-F2D1765CCDFE}"))
+                        {
+                            if (subkey != null && subkey.GetValue("DisplayIcon", null) is string path)
+                            {
+                                // DisplayIcon includes "boot\ffxivboot.exe", need to remove it
+                                path = Directory.GetParent(path).Parent.FullName;
+
+                                if (Directory.Exists(path) && IsValidFfxivPath(path) && !foundVersions.ContainsKey(path))
+                                {
+                                    var baseVersion = Repository.Ffxiv.GetVer(new DirectoryInfo(path));
+                                    foundVersions.Add(path, SeVersion.Parse(baseVersion));
+                                }
+                            }
+                        }
+
+                        // Should return "C:\Program Files (x86)\Steam\steamapps\common\FINAL FANTASY XIV Online" if installed with default options.
+                        foreach (var steamAppId in ValidSteamAppIds)
+                        {
+                            using (var subkey = hklm.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App {steamAppId}"))
+                            {
+                                if (subkey != null && subkey.GetValue("InstallLocation", null) is string path)
+                                {
+                                    if (Directory.Exists(path) && IsValidFfxivPath(path) && !foundVersions.ContainsKey(path))
+                                    {
+                                        // InstallLocation is the root path of the game (the one containing boot and game) itself
+                                        var baseVersion = Repository.Ffxiv.GetVer(new DirectoryInfo(path));
+                                        foundVersions.Add(path, SeVersion.Parse(baseVersion));
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+
+                return foundVersions.Count == 0 ? DefaultPath : foundVersions.OrderByDescending(x => x.Value).First().Key;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Could not search for game paths");
+                return DefaultPath;
+            }
         }
 
         public static long GetUnixMillis()
@@ -167,6 +257,10 @@ namespace XIVLauncher
 
         public static bool CheckIsGameOpen()
         {
+#if DEBUG
+            return false;
+#endif
+
             var procs = Process.GetProcesses();
 
             if (procs.Any(x => x.ProcessName == "ffxiv"))
@@ -217,37 +311,14 @@ namespace XIVLauncher
             return reader.ReadToEnd();
         }
 
-        public static int GetAvailablePort(int startingPort)
+        private static readonly IPEndPoint DefaultLoopbackEndpoint = new(IPAddress.Loopback, port: 0);
+
+        public static int GetAvailablePort()
         {
-            var portArray = new List<int>();
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            var properties = IPGlobalProperties.GetIPGlobalProperties();
-
-            // Ignore active connections
-            var connections = properties.GetActiveTcpConnections();
-            portArray.AddRange(from n in connections
-                where n.LocalEndPoint.Port >= startingPort
-                select n.LocalEndPoint.Port);
-
-            // Ignore active tcp listeners
-            var endPoints = properties.GetActiveTcpListeners();
-            portArray.AddRange(from n in endPoints
-                where n.Port >= startingPort
-                select n.Port);
-
-            // Ignore active UDP listeners
-            endPoints = properties.GetActiveUdpListeners();
-            portArray.AddRange(from n in endPoints
-                where n.Port >= startingPort
-                select n.Port);
-
-            portArray.Sort();
-
-            for (var i = startingPort; i < UInt16.MaxValue; i++)
-                if (!portArray.Contains(i))
-                    return i;
-
-            return 0;
+            socket.Bind(DefaultLoopbackEndpoint);
+            return ((IPEndPoint)socket.LocalEndPoint).Port;
         }
 
         public static string GenerateAcceptLanguage(int asdf = 0)
@@ -283,6 +354,16 @@ namespace XIVLauncher
 
             if (!res)
                 throw new Exception($"Could not add header - {key}: {value}");
+        }
+
+        public static Platform GetPlatform()
+        {
+            if (EnvironmentSettings.IsWine)
+                return Platform.Win32OnLinux;
+
+            // TODO(goat): Add mac here, once it's merged
+
+            return Platform.Win32;
         }
     }
 }

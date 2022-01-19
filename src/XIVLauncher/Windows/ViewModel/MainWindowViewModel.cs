@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -19,6 +20,7 @@ using XIVLauncher.Dalamud;
 using XIVLauncher.Game;
 using XIVLauncher.Game.Patch;
 using XIVLauncher.PatchInstaller;
+using XIVLauncher.Support;
 using XIVLauncher.Xaml;
 
 namespace XIVLauncher.Windows.ViewModel
@@ -118,6 +120,8 @@ namespace XIVLauncher.Windows.ViewModel
                 return;
             }
 
+            username = username.Replace(" ", string.Empty); // Remove whitespace
+
             if (Repository.Ffxiv.GetVer(App.Settings.GamePath) == PatcherMain.BASE_GAME_VERSION &&
                 App.Settings.UniqueIdCacheEnabled)
             {
@@ -149,18 +153,31 @@ namespace XIVLauncher.Windows.ViewModel
             await LoginToGame(username, password, otp, isSteam, startGame);
         }
 
+        private void ShowInternetError()
+        {
+            CustomMessageBox.Show(
+                Loc.Localize("LoginWebExceptionContent",
+                    "XIVLauncher could not establish a connection to the game servers.\n\nThis may be a temporary issue, or a problem with your internet connection. Please try again later."),
+                Loc.Localize("LoginNoOauthTitle", "Login issue"), MessageBoxButton.OK, MessageBoxImage.Error);
+
+            Reactivate();
+        }
+
         private async Task LoginToGame(string username, string password, string otp, bool isSteam, bool startGame)
         {
-            Log.Information("StartLogin() called");
+            Log.Information("LoginToGame() called");
 
             var gateStatus = false;
             try
             {
                 gateStatus = await _launcher.GetGateStatus();
             }
-            catch
+            catch (Exception ex)
             {
-                // ignored
+                Log.Error(ex, "Could not obtain gate status");
+                ShowInternetError();
+
+                return;
             }
 
             try
@@ -337,8 +354,11 @@ namespace XIVLauncher.Windows.ViewModel
             catch (InvalidResponseException ex)
             {
                 Log.Error(ex, "Received invalid server response");
-                
-                CustomMessageBox.Show(Loc.Localize("LoginGenericServerIssue", "The server has sent an invalid response. This is known to occur during outages or when servers are under heavy load.\nPlease wait a minute and try again, or try using the official launcher.\n\nYou can learn more about outages on the Lodestone."), Loc.Localize("LoginNoOauthTitle", "Login issue"),
+
+                CustomMessageBox.Show(
+                    Loc.Localize("LoginGenericServerIssue",
+                        "The server has sent an invalid response. This is known to occur during outages or when servers are under heavy load.\nPlease wait a minute and try again, or try using the official launcher.\n\nYou can learn more about outages on the Lodestone."),
+                    Loc.Localize("LoginNoOauthTitle", "Login issue"),
                     MessageBoxButton.OK, MessageBoxImage.Error);
 
                 Reactivate();
@@ -358,15 +378,23 @@ namespace XIVLauncher.Windows.ViewModel
 
                 Reactivate();
             }
+            catch (HttpRequestException httpException)
+            {
+                Log.Error(httpException, "HttpRequestException during login!");
+
+                ShowInternetError();
+            }
+            catch (TaskCanceledException tce) // This usually indicates a timeout
+            {
+                Log.Error(tce, "TaskCanceledException during login!");
+
+                ShowInternetError();
+            }
             catch (WebException webException)
             {
                 Log.Error(webException, "WebException during login!");
 
-                CustomMessageBox.Show(
-                    Loc.Localize("LoginWebExceptionContent",
-                        "XIVLauncher could not establish a connection to the game servers.\n\nThis may be a temporary issue. Please try again later."),
-                    Loc.Localize("LoginNoOauthTitle", "Login issue"), MessageBoxButton.OK, MessageBoxImage.Error);
-                Reactivate();
+                ShowInternetError();
             }
             catch (Exception ex)
             {
@@ -410,7 +438,7 @@ namespace XIVLauncher.Windows.ViewModel
 
                 Debug.Assert(loginResult.PendingPatches != null, "loginResult.PendingPatches != null ASSERTION FAILED");
 
-                var patcher = new PatchManager(loginResult.PendingPatches, App.Settings.GamePath, App.Settings.PatchPath, _installer);
+                var patcher = new PatchManager(Repository.Ffxiv, loginResult.PendingPatches, App.Settings.GamePath, App.Settings.PatchPath, _installer, _launcher, loginResult.UniqueId);
 
                 IsEnabled = false;
                 Hide();
@@ -470,26 +498,33 @@ namespace XIVLauncher.Windows.ViewModel
                 return;
             }
 
-            // We won't do any sanity checks here anymore, since that should be handled in StartLogin
+            var dalamudLauncher = new DalamudLauncher(DalamudUpdater.Overlay, App.Settings.InGameAddonLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject));
+            var inGameAddonOk = false;
+            if (App.Settings.InGameAddonEnabled)
+            {
+                inGameAddonOk = dalamudLauncher.HoldForUpdate(App.Settings.GamePath);
+            }
 
+            // We won't do any sanity checks here anymore, since that should be handled in StartLogin
             var gameProcess = Launcher.LaunchGame(loginResult.UniqueId, loginResult.OauthLogin.Region,
                     loginResult.OauthLogin.MaxExpansion, App.Settings.SteamIntegrationEnabled,
                     isSteam, App.Settings.AdditionalLaunchArgs, App.Settings.GamePath, App.Settings.IsDx11, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.EncryptArguments.GetValueOrDefault(false),
                     process => {
                         if (App.Settings.InGameAddonLoadMethod == DalamudLoadMethod.EntryPoint)
                         {
-                            if (App.Settings.InGameAddonEnabled && App.Settings.IsDx11)
+                            if (App.Settings.InGameAddonEnabled && App.Settings.IsDx11 && inGameAddonOk)
                             {
-                                var launcher = new DalamudLauncher(DalamudUpdater.Overlay, App.Settings.InGameAddonLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject));
-                                launcher.Setup(process, App.Settings);
-                                launcher.Run();
+                                dalamudLauncher.Setup(process, App.Settings);
+                                dalamudLauncher.Run();
                             }
                             else
                             {
-                                Log.Warning("In-Game addon was not enabled (tried to load as entry point)");
+                                Log.Warning("In-Game addon was not enabled or failed to ensure (tried to load as entry point)");
                             }
                         }
                     });
+
+            Troubleshooting.LogTroubleshooting();
 
             if (gameProcess == null)
             {
@@ -510,13 +545,13 @@ namespace XIVLauncher.Windows.ViewModel
                 var addons = App.Settings.AddonList.Where(x => x.IsEnabled).Select(x => x.Addon).Cast<IAddon>().ToList();
                 if (App.Settings.InGameAddonLoadMethod == DalamudLoadMethod.DllInject)
                 {
-                    if (App.Settings.InGameAddonEnabled && App.Settings.IsDx11)
+                    if (App.Settings.InGameAddonEnabled && App.Settings.IsDx11 && inGameAddonOk)
                     {
-                        addons.Add(new DalamudLauncher(DalamudUpdater.Overlay, App.Settings.InGameAddonLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject)));
+                        addons.Add(dalamudLauncher);
                     }
                     else
                     {
-                        Log.Warning("In-Game addon was not enabled (tried to load via DLL injection)");
+                        Log.Warning("In-Game addon was not enabled or failed to ensure (tried to load via DLL injection)");
                     }
                 }
                 addonMgr.RunAddons(gameProcess, App.Settings, addons);
@@ -615,6 +650,11 @@ namespace XIVLauncher.Windows.ViewModel
         {
             try
             {
+                if (App.Settings.PatchPath is { Exists: false })
+                {
+                    App.Settings.PatchPath = null;
+                }
+                
                 App.Settings.PatchPath ??= new DirectoryInfo(Path.Combine(Paths.RoamingPath, "patches"));
 
                 Game.Patch.PatchList.PatchListEntry[] bootPatches = null;
@@ -648,8 +688,8 @@ namespace XIVLauncher.Windows.ViewModel
                         return false;
                     }
 
-                    var patcher = new PatchManager(bootPatches, App.Settings.GamePath,
-                        App.Settings.PatchPath, _installer);
+                    var patcher = new PatchManager(Repository.Boot, bootPatches, App.Settings.GamePath,
+                        App.Settings.PatchPath, _installer, null, null);
 
                     IsEnabled = false;
 
