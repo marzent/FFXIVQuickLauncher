@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using Newtonsoft.Json;
 using Serilog;
 using SharedMemory;
@@ -163,7 +162,7 @@ namespace XIVLauncher.PatchInstaller
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Patcher init failed.\n\n" + ex, "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Error);
+                Log.Error("Patcher init failed.\n\n" + ex, "XIVLauncher");
             }
         }
 
