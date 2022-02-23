@@ -1,11 +1,12 @@
 using System.IO;
 using Newtonsoft.Json;
+using XIVLauncher.Common;
 
-namespace XIVLauncher.Settings
+namespace XIVLauncher.Common
 {
     class DalamudSettings
     {
-        public bool DoDalamudTest { get; set; } = false;
+        public string? DalamudBetaKey { get; set; } = null;
         public bool DoDalamudRuntime { get; set; } = false;
         public string DalamudBetaKind { get; set; }
         public bool? OptOutMbCollection { get; set; }

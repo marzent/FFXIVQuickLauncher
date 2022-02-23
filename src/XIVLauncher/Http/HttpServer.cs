@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
+using XIVLauncher.Common;
 
 namespace XIVLauncher.Http
 {
@@ -19,9 +19,9 @@ namespace XIVLauncher.Http
             "\n"+
             "{app:\"XIVLauncher\", version: \"" +
 #if !XL_NOAUTOUPDATE
-            Util.GetAssemblyVersion() +
+            AppUtil.GetAssemblyVersion() +
 #else
-            Util.GetGitHash() +
+            AppUtil.GetGitHash() +
 #endif
             "\"}"
         );

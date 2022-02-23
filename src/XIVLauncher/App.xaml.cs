@@ -10,10 +10,12 @@ using CheapLoc;
 using Config.Net;
 using Newtonsoft.Json;
 using Serilog;
+using Serilog.Events;
+using XIVLauncher.Common;
 using XIVLauncher.Dalamud;
-using XIVLauncher.Game;
-using XIVLauncher.Settings;
-using XIVLauncher.Settings.Parsers;
+using XIVLauncher.Common.Game;
+using XIVLauncher.Common.Parsers;
+using XIVLauncher.Support;
 using XIVLauncher.Windows;
 
 namespace XIVLauncher
@@ -37,41 +39,57 @@ namespace XIVLauncher
 
         public App()
         {
-            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+            // wine does not support WPF with HW rendering, so switch to software only mode
+            try
+            {
+                if (EnvironmentSettings.IsWine)
+                    RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+            }
+            catch
+            {
+                // ignored
+            }
 
             // TODO: Use a real command line parser
             foreach (var arg in Environment.GetCommandLineArgs())
             {
                 if (arg.StartsWith("--roamingPath="))
                 {
-                    Paths.RoamingPath = arg.Substring(14);
-                    break;
+                    Paths.OverrideRoamingPath(arg.Substring(14));
                 }
-
-                if (arg.StartsWith("--dalamudRunner="))
+                else if (arg.StartsWith("--dalamudRunner="))
                 {
                     DalamudUpdater.RunnerOverride = new FileInfo(arg.Substring(16));
-                    break;
                 }
             }
 
-            var release = $"xivlauncher-{Util.GetAssemblyVersion()}-{Util.GetGitHash()}";
+            var release = $"xivlauncher-{AppUtil.GetAssemblyVersion()}-{AppUtil.GetGitHash()}";
 
-            Log.Logger = new LoggerConfiguration()
-                .WriteTo.Async(a =>
-                    a.File(Path.Combine(Paths.RoamingPath, "output.log")))
+            try
+            {
+                Log.Logger = new LoggerConfiguration()
+                    .WriteTo.Async(a =>
+                        a.File(Path.Combine(Paths.RoamingPath, "output.log")))
+                    .WriteTo.Sink(SerilogEventSink.Instance)
 #if DEBUG
-                .WriteTo.Debug()
-                .MinimumLevel.Verbose()
+                    .WriteTo.Debug()
+                    .MinimumLevel.Verbose()
 #else
-                .MinimumLevel.Information()
+                    .MinimumLevel.Information()
 #endif
-                .CreateLogger();
+                    .CreateLogger();
 
 #if !DEBUG
-            AppDomain.CurrentDomain.UnhandledException += EarlyInitExceptionHandler;
-            TaskScheduler.UnobservedTaskException += TaskSchedulerOnUnobservedTaskException;
+                AppDomain.CurrentDomain.UnhandledException += EarlyInitExceptionHandler;
+                TaskScheduler.UnobservedTaskException += TaskSchedulerOnUnobservedTaskException;
 #endif
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not set up logging. Please report this error.\n\n" + ex.Message, "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            SerilogEventSink.Instance.LogLine += OnSerilogLogLine;
 
             try
             {
@@ -96,7 +114,7 @@ namespace XIVLauncher
                 Log.Information("Trying to set up Loc for language code {0}", App.Settings.LauncherLanguage.GetLocalizationCode());
                 if (!App.Settings.LauncherLanguage.IsDefault())
                 {
-                    Loc.Setup(Util.GetFromResources($"XIVLauncher.Resources.Loc.xl.xl_{App.Settings.LauncherLanguage.GetLocalizationCode()}.json"));
+                    Loc.Setup(AppUtil.GetFromResources($"XIVLauncher.Resources.Loc.xl.xl_{App.Settings.LauncherLanguage.GetLocalizationCode()}.json"));
                 }
                 else
                 {
@@ -129,7 +147,17 @@ namespace XIVLauncher
                     var updateMgr = new Updates();
                     updateMgr.OnUpdateCheckFinished += OnUpdateCheckFinished;
 
-                    updateMgr.Run(EnvironmentSettings.IsPreRelease);
+                    ChangelogWindow changelogWindow = null;
+                    try
+                    {
+                        changelogWindow = new ChangelogWindow(EnvironmentSettings.IsPreRelease);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Could not load changelog window");
+                    }
+
+                    var _ = updateMgr.Run(EnvironmentSettings.IsPreRelease, changelogWindow);
                 }
                 catch (Exception ex)
                 {
@@ -140,6 +168,14 @@ namespace XIVLauncher
                 }
             }
 #endif
+        }
+
+        private static void OnSerilogLogLine(object sender, (string Line, LogEventLevel Level, DateTimeOffset TimeStamp, Exception? Exception) e)
+        {
+            if (e.Exception == null)
+                return;
+
+            Troubleshooting.LogException(e.Exception, e.Line);
         }
 
         private void SetupSettings()
@@ -157,7 +193,7 @@ namespace XIVLauncher
             }
         }
 
-        private void OnUpdateCheckFinished(object sender, EventArgs e)
+        private void OnUpdateCheckFinished(bool finishUp)
         {
             Dispatcher.Invoke(() =>
             {
@@ -167,6 +203,9 @@ namespace XIVLauncher
                 if (_updateWindow != null)
                     _updateWindow.Hide();
 #endif
+
+                if (!finishUp)
+                    return;
 
                 _mainWindow = new MainWindow();
                 _mainWindow.Initialize();
@@ -207,7 +246,7 @@ namespace XIVLauncher
                 Log.Error((Exception) e.ExceptionObject, "Unhandled exception.");
 
                 if (_useFullExceptionHandler)
-                    ErrorWindow.Show((Exception) e.ExceptionObject, "An unhandled exception occured.", "Unhandled");
+                    ErrorWindow.Show((Exception) e.ExceptionObject, "An unhandled exception occurred.", "Unhandled");
                 else
                     MessageBox.Show(
                         "Error during early initialization. Please report this error.\n\n" + e.ExceptionObject,
@@ -283,11 +322,11 @@ namespace XIVLauncher
 
             if (EnvironmentSettings.IsDisableUpdates)
             {
-                OnUpdateCheckFinished(null, null);
+                OnUpdateCheckFinished(true);
             }
 
 #if XL_NOAUTOUPDATE
-            OnUpdateCheckFinished(null, null);
+            OnUpdateCheckFinished(true);
 #endif
         }
     }

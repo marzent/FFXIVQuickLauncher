@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -10,21 +9,16 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using CheapLoc;
-using MaterialDesignThemes.Wpf;
 using Serilog;
 using XIVLauncher.Accounts;
-using XIVLauncher.Addon;
-using XIVLauncher.Cache;
+using XIVLauncher.Common;
 using XIVLauncher.Dalamud;
-using XIVLauncher.Game;
-using XIVLauncher.Game.Patch;
-using XIVLauncher.Game.Patch.Acquisition;
-using XIVLauncher.PatchInstaller;
-using XIVLauncher.PatchInstaller.PatcherIpcMessages;
-using XIVLauncher.Settings;
+using XIVLauncher.Common.Game;
+using XIVLauncher.Common.Game.Patch.Acquisition;
+using XIVLauncher.PlatformAbstractions;
+using XIVLauncher.Support;
 using XIVLauncher.Windows.ViewModel;
 using Timer = System.Timers.Timer;
 
@@ -42,8 +36,7 @@ namespace XIVLauncher.Windows
 
         private Timer _maintenanceQueueTimer;
 
-        private readonly Launcher _launcher = new Launcher();
-        private readonly Game.Patch.PatchInstaller _installer = new Game.Patch.PatchInstaller();
+        private readonly Launcher _launcher = new(CommonRunner.Instance, CommonSteam.Instance, CommonUniqueIdCache.Instance, CommonSettings.Instance);
 
         private AccountManager _accountManager;
 
@@ -56,6 +49,8 @@ namespace XIVLauncher.Windows
             this.DataContext = new MainWindowViewModel();
             Closed += Model.OnWindowClosed;
             Closing += Model.OnWindowClosing;
+
+            Model.LoginCardTransitionerIndex = 1;
 
             Model.Activate += () => this.Dispatcher.Invoke(() =>
             {
@@ -105,6 +100,23 @@ namespace XIVLauncher.Windows
                 return dialog;
             };
 
+            Model.GameRepairProgressWindowFactory = verify =>
+            {
+                var dialog = new GameRepairProgressWindow(verify);
+
+                if (this.IsVisible)
+                {
+                    dialog.Owner = this;
+                    dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                }
+                else
+                {
+                    dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                }
+
+                return dialog;
+            };
+
             NewsListView.ItemsSource = new List<News>
             {
                 new News
@@ -115,9 +127,9 @@ namespace XIVLauncher.Windows
             };
 
 #if !XL_NOAUTOUPDATE
-            Title += " v" + Util.GetAssemblyVersion();
+            Title += " v" + AppUtil.GetAssemblyVersion();
 #else
-            Title += " " + Util.GetGitHash();
+            Title += " " + AppUtil.GetGitHash();
 #endif
 
 #if !XL_NOAUTOUPDATE
@@ -258,25 +270,22 @@ namespace XIVLauncher.Windows
 
             App.Settings.VersionUpgradeLevel = versionLevel;
 
-            var gateStatus = false;
-            try
-            {
-                gateStatus = Task.Run(() => _launcher.GetGateStatus()).Result;
-            }
-            catch
-            {
-                // ignored
-            }
+            var worldStatusBrushOk = WorldStatusPackIcon.Foreground;
+            // grey out world status icon while deferred check is running
+            WorldStatusPackIcon.Foreground = new SolidColorBrush(Color.FromRgb(38, 38, 38));
 
-            if (!gateStatus) WorldStatusPackIcon.Foreground = new SolidColorBrush(Color.FromRgb(242, 24, 24));
-
-            var version = Util.GetAssemblyVersion();
-            if (App.Settings.LastVersion != version)
+            _launcher.GetGateStatus().ContinueWith((resultTask) =>
             {
-                new ChangelogWindow().ShowDialog();
-
-                App.Settings.LastVersion = version;
-            }
+                try
+                {
+                    var brushToSet = resultTask.Result ? worldStatusBrushOk : null;
+                    Dispatcher.InvokeAsync(() =>  WorldStatusPackIcon.Foreground = brushToSet ?? new SolidColorBrush(Color.FromRgb(242, 24, 24)));
+                }
+                catch
+                {
+                    // ignored
+                }
+            });
 
             _accountManager = new AccountManager(App.Settings);
 
@@ -289,7 +298,7 @@ namespace XIVLauncher.Windows
 
             if (App.Settings.UniqueIdCacheEnabled && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
-                UniqueIdCache.Instance.Reset();
+                CommonUniqueIdCache.Instance.Reset();
                 Console.Beep(523, 150); // Feedback without popup
             }
 
@@ -308,7 +317,7 @@ namespace XIVLauncher.Windows
                     Model.IsLoggingIn = true;
                     Dispatcher.InvokeAsync(() => Model.Login(savedAccount.UserName, savedAccount.Password,
                         savedAccount.UseOtp,
-                        savedAccount.UseSteamServiceAccount, true, true));
+                        savedAccount.UseSteamServiceAccount, true, true, false, false));
 
                     return;
                 }
@@ -341,7 +350,11 @@ namespace XIVLauncher.Windows
                 SettingsControl.ReloadSettings();
             }
 
-            Task.Run(SetupHeadlines);
+            Task.Run(async () =>
+            {
+                await SetupHeadlines();
+                Troubleshooting.LogTroubleshooting();
+            });
 
             Log.Information("MainWindow initialized.");
 
@@ -432,11 +445,11 @@ namespace XIVLauncher.Windows
         private void SetupMaintenanceQueueTimer()
         {
             // This is a good indicator that we should clear the UID cache
-            UniqueIdCache.Instance.Reset();
+            CommonUniqueIdCache.Instance.Reset();
 
             _maintenanceQueueTimer = new Timer
             {
-                Interval = 15000
+                Interval = 20000
             };
 
             _maintenanceQueueTimer.Elapsed += OnMaintenanceQueueTimerEvent;
@@ -469,7 +482,7 @@ namespace XIVLauncher.Windows
                         return;
 
                     Model.IsLoggingIn = true;
-                    await Model.Login(Model.Username, LoginPassword.Password, Model.IsOtp, Model.IsSteam, false, true);
+                    await Model.Login(Model.Username, LoginPassword.Password, Model.IsOtp, Model.IsSteam, false, true, false, false);
                     Model.IsLoggingIn = false;
                 });
 
@@ -508,7 +521,7 @@ namespace XIVLauncher.Windows
                 return;
 
             Model.IsLoggingIn = true;
-            await Model.Login(Model.Username, LoginPassword.Password, Model.IsOtp, Model.IsSteam, false, true);
+            await Model.Login(Model.Username, LoginPassword.Password, Model.IsOtp, Model.IsSteam, false, true, false, false);
             Model.IsLoggingIn = false;
         }
 
@@ -566,7 +579,13 @@ namespace XIVLauncher.Windows
                 },
                 State = Launcher.LoginState.Ok,
                 UniqueId = "0"
-            }, true, false);
+            }, true, false, false);
+        }
+
+        private void LoginPassword_OnPasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext != null)
+                ((MainWindowViewModel)this.DataContext).Password = ((PasswordBox)sender).Password;
         }
     }
 }

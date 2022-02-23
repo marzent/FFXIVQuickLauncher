@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Serilog;
-using XIVLauncher.Settings;
+using XIVLauncher.Common;
 
 namespace XIVLauncher.Accounts
 {
@@ -26,7 +22,7 @@ namespace XIVLauncher.Accounts
             set => _setting.CurrentAccountId = value.Id;
         }
 
-        private ILauncherSettingsV3 _setting; 
+        private ILauncherSettingsV3 _setting;
 
         public AccountManager(ILauncherSettingsV3 setting)
         {

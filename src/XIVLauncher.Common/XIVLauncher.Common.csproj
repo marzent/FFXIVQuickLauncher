@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+    <PropertyGroup>
+        <Product>XIVLauncher.Common</Product>
+        <AssemblyTitle>XIVLauncher.Common</AssemblyTitle>
+        <Description>Common components for XIVLauncher.</Description>
+        <VersionPrefix>1.0.0</VersionPrefix>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <OutputType>Library</OutputType>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <UseWPF>true</UseWPF>
+        <LangVersion>latest</LangVersion>
+        <Deterministic>true</Deterministic>
+        <OutputPath>..\bin\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Downloader" Version="2.2.8" />
+        <PackageReference Include="MonoTorrent" Version="2.0.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+        <PackageReference Include="Serilog" Version="2.9.0" />
+        <PackageReference Include="Serilog.Sinks.Async" Version="1.4.0" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
+        <PackageReference Include="Serilog.Sinks.Debug" Version="1.0.1" />
+        <PackageReference Include="Serilog.Sinks.File" Version="4.1.0" />
+        <PackageReference Include="SharedMemory" Version="2.3.2" />
+    </ItemGroup>
+</Project>

@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Input;
 using XIVLauncher.Addon;
+using XIVLauncher.Common;
 using XIVLauncher.Dalamud;
-using XIVLauncher.Game;
-using XIVLauncher.Game.Patch.Acquisition;
+using XIVLauncher.Common.Game.Patch.Acquisition;
 
-namespace XIVLauncher.Settings
+namespace XIVLauncher.Common
 {
     public interface ILauncherSettingsV3
     {

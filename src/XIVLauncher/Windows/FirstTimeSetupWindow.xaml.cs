@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using CheapLoc;
 using IWshRuntimeLibrary;
 using XIVLauncher.Addon;
-using XIVLauncher.Game;
+using XIVLauncher.Common;
 using XIVLauncher.Windows.ViewModel;
 
 namespace XIVLauncher.Windows
@@ -26,14 +25,14 @@ namespace XIVLauncher.Windows
 
             this.DataContext = new FirstTimeSetupViewModel();
 
-            var detectedPath = Util.TryGamePaths();
+            var detectedPath = AppUtil.TryGamePaths();
 
             if (detectedPath != null) GamePathEntry.Text = detectedPath;
 
             this.actPath = this.FindAct();
 
 #if !XL_NOAUTOUPDATE
-            if (EnvironmentSettings.IsDisableUpdates || Util.GetBuildOrigin() != "goatcorp/FFXIVQuickLauncher")
+            if (EnvironmentSettings.IsDisableUpdates || AppUtil.GetBuildOrigin() != "goatcorp/FFXIVQuickLauncher")
             {
 #endif
                 CustomMessageBox.Show(
@@ -76,7 +75,7 @@ namespace XIVLauncher.Windows
                 if (string.IsNullOrEmpty(GamePathEntry.Text))
                 {
                     CustomMessageBox.Show(Loc.Localize("GamePathEmptyError", "Please select a game path."), "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error, false);
+                        MessageBoxButton.OK, MessageBoxImage.Error, false, false);
                     return;
                 }
 

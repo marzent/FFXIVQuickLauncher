@@ -11,6 +11,7 @@ using XIVLauncher.Windows;
 using System.Security.Cryptography;
 using Castle.Core.Internal;
 using NuGet;
+using XIVLauncher.Common;
 
 namespace XIVLauncher.Dalamud
 {
@@ -22,7 +23,7 @@ namespace XIVLauncher.Dalamud
         {
             public int Version { get; set; }
             public List<Asset> Assets { get; set; }
-            
+
             public class Asset
             {
                 public string Url { get; set; }
@@ -31,7 +32,7 @@ namespace XIVLauncher.Dalamud
             }
         }
 
-        public static bool EnsureAssets(DirectoryInfo baseDir)
+        public static bool TryEnsureAssets(DirectoryInfo baseDir, out DirectoryInfo assetsDir)
         {
             using var client = new WebClient();
             using var sha1 = SHA1.Create();
@@ -41,14 +42,31 @@ namespace XIVLauncher.Dalamud
             var (isRefreshNeeded, info) = CheckAssetRefreshNeeded(baseDir);
 
             if (info == null)
+            {
+                assetsDir = null;
                 return false;
+            }
+
+            // NOTE(goat): We should use a junction instead of copying assets to a new folder. There is no C# API for junctions in .NET Framework.
+
+            var newAssetsDir = new DirectoryInfo(Path.Combine(baseDir.FullName, info.Version.ToString()));
+            var devDir = new DirectoryInfo(Path.Combine(baseDir.FullName, "dev"));
 
             foreach (var entry in info.Assets)
             {
-                var filePath = Path.Combine(baseDir.FullName, entry.FileName);
+                var filePath = Path.Combine(newAssetsDir.FullName, entry.FileName);
+                var filePathDev = Path.Combine(devDir.FullName, entry.FileName);
 
-                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-                
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePathDev)!);
+                }
+                catch
+                {
+                    // ignored
+                }
+
                 var refreshFile = false;
                 if (File.Exists(filePath) && !entry.Hash.IsNullOrEmpty())
                 {
@@ -65,17 +83,27 @@ namespace XIVLauncher.Dalamud
                         Log.Error(ex, "[DASSET] Could not read asset.");
                     }
                 }
-                
+
                 if (!File.Exists(filePath) || isRefreshNeeded || refreshFile)
                 {
                     Log.Verbose("[DASSET] Downloading {0} to {1}...", entry.Url, entry.FileName);
                     try
                     {
                         File.WriteAllBytes(filePath, client.DownloadData(entry.Url));
+
+                        try
+                        {
+                            File.Copy(filePath, filePathDev);
+                        }
+                        catch
+                        {
+                            // ignored
+                        }
                     }
                     catch (Exception ex)
                     {
                         Log.Error(ex, "[DASSET] Could not download asset.");
+                        assetsDir = null;
                         return false;
                     }
                 }
@@ -84,7 +112,11 @@ namespace XIVLauncher.Dalamud
             if (isRefreshNeeded)
                 SetLocalAssetVer(baseDir, info.Version);
 
-            Log.Verbose("[DASSET] Assets OK");
+            assetsDir = newAssetsDir;
+
+            Log.Verbose("[DASSET] Assets OK at {0}", assetsDir.FullName);
+
+            CleanUpOld(baseDir, info.Version - 1);
 
             return true;
         }
@@ -93,7 +125,6 @@ namespace XIVLauncher.Dalamud
         {
             return Path.Combine(baseDir.FullName, "asset.ver");
         }
-
 
         /// <summary>
         ///     Check if an asset update is needed. When this fails, just return false - the route to github
@@ -120,7 +151,7 @@ namespace XIVLauncher.Dalamud
                     // This means it'll stay on 0, which will redownload all assets - good by me
                     Log.Error(ex, "[DASSET] Could not read asset.ver");
                 }
-                
+
                 var remoteVer = JsonConvert.DeserializeObject<AssetInfo>(client.DownloadString(ASSET_STORE_URL + "asset.json"));
 
                 Log.Verbose("[DASSET] Ver check - local:{0} remote:{1}", localVer, remoteVer.Version);
@@ -146,6 +177,24 @@ namespace XIVLauncher.Dalamud
             catch (Exception e)
             {
                 Log.Error(e, "[DASSET] Could not write local asset version");
+            }
+        }
+
+        private static void CleanUpOld(DirectoryInfo baseDir, int version)
+        {
+            if (Util.CheckIsGameOpen())
+                return;
+
+            var toDelete = Path.Combine(baseDir.FullName, version.ToString());
+
+            try
+            {
+                if (Directory.Exists(toDelete))
+                    Directory.Delete(toDelete, true);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Could not clean up old assets");
             }
         }
     }

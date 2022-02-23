@@ -15,20 +15,24 @@ namespace XIVLauncher
 {
     class Updates
     {
-#if !XL_NOAUTOUPDATE
-        public EventHandler OnUpdateCheckFinished;
-#endif
+        public event Action<bool> OnUpdateCheckFinished;
 
-        public async Task Run(bool downloadPrerelease = false)
+        public async Task Run(bool downloadPrerelease, ChangelogWindow changelogWindow)
         {
             // GitHub requires TLS 1.2, we need to hardcode this for Windows 7
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+            var url = "https://kamori.goats.dev/Proxy/Update";
+            if (downloadPrerelease)
+                url += "/Prerelease";
+            else
+                url += "/Release";
 
             try
             {
                 ReleaseEntry newRelease = null;
 
-                using (var updateManager = await UpdateManager.GitHubUpdateManager(repoUrl: App.RepoUrl, applicationName: "XIVLauncher", prerelease: downloadPrerelease))
+                using (var updateManager = new UpdateManager(url, "XIVLauncher"))
                 {
                     // TODO: is this allowed?
                     SquirrelAwareApp.HandleEvents(
@@ -42,15 +46,36 @@ namespace XIVLauncher
 
                 if (newRelease != null)
                 {
-                    /*
-                    MessageBox.Show(Loc.Localize("UpdateNotice", "An update for XIVLauncher is available and will now be installed."),
-                        "XIVLauncher Update", MessageBoxButton.OK, MessageBoxImage.Asterisk);
-                    */
-                    UpdateManager.RestartApp();
+                    if (changelogWindow == null)
+                    {
+                        Log.Error("changelogWindow was null");
+                        UpdateManager.RestartApp();
+                        return;
+                    }
+
+                    try
+                    {
+                        changelogWindow.Dispatcher.Invoke(() =>
+                        {
+                            changelogWindow.UpdateVersion(newRelease.Version.ToString());
+                            changelogWindow.Show();
+                            changelogWindow.Closed += (_, _) =>
+                            {
+                                UpdateManager.RestartApp();
+                            };
+                        });
+
+                        OnUpdateCheckFinished?.Invoke(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Could not show changelog window");
+                        UpdateManager.RestartApp();
+                    }
                 }
 #if !XL_NOAUTOUPDATE
                 else
-                    OnUpdateCheckFinished?.Invoke(this, null);
+                    OnUpdateCheckFinished?.Invoke(true);
 #endif
             }
             catch (Exception ex)
@@ -59,7 +84,7 @@ namespace XIVLauncher
                 CustomMessageBox.Show(Loc.Localize("updatefailureerror", "XIVLauncher failed to check for updates. This may be caused by connectivity issues to GitHub. Wait a few minutes and try again.\nDisable your VPN, if you have one. You may also have to exclude XIVLauncher from your antivirus.\nIf this continues to fail after several minutes, please check out the FAQ."),
                                 "XIVLauncher",
                                  MessageBoxButton.OK,
-                                 MessageBoxImage.Error);
+                                 MessageBoxImage.Error, showOfficialLauncher: true);
                 System.Environment.Exit(1);
             }
 

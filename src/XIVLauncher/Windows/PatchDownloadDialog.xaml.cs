@@ -9,8 +9,9 @@ using System.Timers;
 using System.Windows;
 using System.Windows.Input;
 using Serilog;
-using XIVLauncher.Game.Patch;
-using XIVLauncher.Game.Patch.Acquisition;
+using XIVLauncher.Common;
+using XIVLauncher.Common.Game.Patch;
+using XIVLauncher.Common.Game.Patch.Acquisition;
 using XIVLauncher.Http;
 using XIVLauncher.Windows.ViewModel;
 using Brushes = System.Windows.Media.Brushes;
@@ -23,6 +24,7 @@ namespace XIVLauncher.Windows
     public partial class PatchDownloadDialog : Window
     {
         private readonly PatchManager _manager;
+        private readonly Timer _timer;
 
         public PatchDownloadDialogViewModel ViewModel => DataContext as PatchDownloadDialogViewModel;
 
@@ -32,12 +34,20 @@ namespace XIVLauncher.Windows
             InitializeComponent();
             this.DataContext = new PatchDownloadDialogViewModel();
 
-            var viewUpdateTimer = new Timer();
-            viewUpdateTimer.Elapsed += ViewUpdateTimerOnElapsed;
-            viewUpdateTimer.AutoReset = true;
-            viewUpdateTimer.Interval = 200;
-            viewUpdateTimer.Enabled = true;
-            viewUpdateTimer.Start();
+            MouseMove += PatchDownloadDialog_OnMouseMove;
+
+            _timer = new Timer();
+            _timer.Elapsed += ViewUpdateTimerOnElapsed;
+            _timer.AutoReset = true;
+            _timer.Interval = 200;
+            _timer.Enabled = true;
+            _timer.Start();
+        }
+
+        private void PatchDownloadDialog_OnMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+                DragMove();
         }
 
         private void ViewUpdateTimerOnElapsed(object sender, ElapsedEventArgs e)
@@ -219,6 +229,11 @@ namespace XIVLauncher.Windows
 #if DEBUG
             _manager.CancelAllDownloads();
 #endif
+        }
+
+        public void StopTimer()
+        {
+            _timer.Stop();
         }
     }
 }
