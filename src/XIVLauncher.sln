@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XIVLauncher.Common.Unix", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XIVLauncher.VersionGenerator", "XIVLauncher.VersionGenerator\XIVLauncher.VersionGenerator.csproj", "{1F476606-D4C4-4808-8A41-FC22326B7D30}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XIVLauncher.NativeAOT", "XIVLauncher.NativeAOT\XIVLauncher.NativeAOT.csproj", "{232BF622-4081-4B1D-A57F-EB922070BA89}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -81,6 +83,12 @@ Global
 		{1F476606-D4C4-4808-8A41-FC22326B7D30}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1F476606-D4C4-4808-8A41-FC22326B7D30}.ReleaseNoUpdate|Any CPU.ActiveCfg = Debug|Any CPU
 		{1F476606-D4C4-4808-8A41-FC22326B7D30}.ReleaseNoUpdate|Any CPU.Build.0 = Debug|Any CPU
+		{232BF622-4081-4B1D-A57F-EB922070BA89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{232BF622-4081-4B1D-A57F-EB922070BA89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{232BF622-4081-4B1D-A57F-EB922070BA89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{232BF622-4081-4B1D-A57F-EB922070BA89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{232BF622-4081-4B1D-A57F-EB922070BA89}.ReleaseNoUpdate|Any CPU.ActiveCfg = Debug|Any CPU
+		{232BF622-4081-4B1D-A57F-EB922070BA89}.ReleaseNoUpdate|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
