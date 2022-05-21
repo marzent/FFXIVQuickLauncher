@@ -39,7 +39,7 @@ public class UnixDalamudRunner : IDalamudRunner
         environment.Add("DALAMUD_RUNTIME", dotnetRuntimePath);
 
         var launchArguments = new List<string> { $"\"{runner.FullName}\"", "launch",
-            $"--mode={(loadMethod == DalamudLoadMethod.EntryPoint ? "entrypoint" : "inject")}",
+            $"-m", $"{(loadMethod == DalamudLoadMethod.EntryPoint ? "entrypoint" : "inject")}",
             $"--game=\"{gameExePath}\"",
             $"--dalamud-working-directory=\"{startInfo.WorkingDirectory}\"",
             $"--dalamud-configuration-path=\"{startInfo.ConfigurationPath}\"",
