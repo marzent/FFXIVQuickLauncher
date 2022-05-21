@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using System.Numerics;
+using Serilog;
 
 namespace XIVLauncher.Core.Components.Common;
 
@@ -50,7 +51,7 @@ public class Input : Component
         if (Program.Steam != null)
         {
             Program.Steam.OnGamepadTextInputDismissed += this.SteamOnOnGamepadTextInputDismissed;
-            HasSteamDeckInput = Program.IsSteamDeck;
+            HasSteamDeckInput = Program.IsSteamDeckHardware;
         }
     }
 
@@ -87,6 +88,7 @@ public class Input : Component
         if (ImGui.IsItemActivated() && HasSteamDeckInput && Program.Steam != null && Program.Steam.IsValid)
         {
             this.isSteamDeckInputActive = Program.Steam?.ShowGamepadTextInput(Flags.HasFlag(ImGuiInputTextFlags.Password), false, SteamDeckPrompt, (int)MaxLength, this.inputBacking) ?? false;
+            Log.Information("SteamDeck Input Active({Name}): {IsActive}", this.Label, this.isSteamDeckInputActive);
         }
 
         ImGui.Dummy(Spacing);
