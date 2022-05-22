@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using XIVLauncher.Common.Game.Launcher;
+using XIVLauncher.Common.Util;
 
 namespace XIVLauncher.Common.Game
 {
@@ -54,7 +55,7 @@ namespace XIVLauncher.Common.Game
     {
         public static async Task<Headlines> Get(ILauncher game, ClientLanguage language)
         {
-            var unixTimestamp = Util.GetUnixMillis();
+            var unixTimestamp = ApiHelpers.GetUnixMillis();
             var langCode = language.GetLangCode();
             var url = $"https://frontier.ffxiv.com/news/headline.json?lang={langCode}&media=pcapp&_={unixTimestamp}";
 

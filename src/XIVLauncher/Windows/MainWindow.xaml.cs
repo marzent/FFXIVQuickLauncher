@@ -18,6 +18,7 @@ using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.Game;
 using XIVLauncher.Common.Game.Launcher;
 using XIVLauncher.Common.Game.Patch.Acquisition;
+using XIVLauncher.Common.Util;
 using XIVLauncher.Support;
 using XIVLauncher.Windows.ViewModel;
 using Timer = System.Timers.Timer;
@@ -343,13 +344,14 @@ namespace XIVLauncher.Windows
             else
             {
                 string url;
+
                 switch (App.Settings.Language)
                 {
                     case ClientLanguage.Japanese:
                         url = "https://jp.finalfantasyxiv.com/lodestone/news/detail/";
                         break;
 
-                    case ClientLanguage.English when Util.IsRegionNorthAmerica():
+                    case ClientLanguage.English when GameHelpers.IsRegionNorthAmerica():
                         url = "https://na.finalfantasyxiv.com/lodestone/news/detail/";
                         break;
 

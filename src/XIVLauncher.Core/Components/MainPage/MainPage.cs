@@ -16,6 +16,7 @@ using XIVLauncher.Common.Windows;
 using XIVLauncher.Common.Unix;
 using XIVLauncher.Common.Unix.Compatibility;
 using XIVLauncher.Common.Unix.Compatibility.GameFixes;
+using XIVLauncher.Common.Util;
 using XIVLauncher.Core.Accounts;
 
 namespace XIVLauncher.Core.Components.MainPage;
@@ -47,6 +48,9 @@ public class MainPage : Page
         var savedAccount = App.Accounts.CurrentAccount;
 
         if (savedAccount != null) this.SwitchAccount(savedAccount, false);
+
+        if (PlatformHelpers.IsElevated())
+            App.ShowMessage("XIVLauncher is running as administrator/root user.\nThis can cause various issues, including but not limited to addons failing to launch and hotkey applications failing to respond.\n\nPlease take care to avoid running XIVLauncher with elevated privileges", "XIVLauncher");
     }
 
     public AccountSwitcher AccountSwitcher { get; private set; }
@@ -109,7 +113,7 @@ public class MainPage : Page
 
         Task.Run(async () =>
         {
-            if (Util.CheckIsGameOpen() && action == LoginAction.Repair)
+            if (GameHelpers.CheckIsGameOpen() && action == LoginAction.Repair)
             {
                 App.ShowMessageBlocking("The game and/or the official launcher are open. XIVLauncher cannot repair the game if this is the case.\nPlease close them and try again.", "XIVLauncher");
 
@@ -745,7 +749,14 @@ public class MainPage : Page
 
             runner = new UnixGameRunner(Program.CompatibilityTools, dalamudLauncher, dalamudOk);
 
-            gameArgs += $" UserPath=\"{Program.CompatibilityTools.UnixToWinePath(App.Settings.GameConfigPath.FullName)}\"";
+            // SE has its own way of encoding spaces when encrypting arguments, which interferes 
+            // with quoting, but they are necessary when passing paths unencrypted
+            var userPath = Program.CompatibilityTools.UnixToWinePath(App.Settings.GameConfigPath.FullName);
+            if (App.Settings.IsEncryptArgs.GetValueOrDefault(true))
+                gameArgs += $" UserPath={userPath}";
+            else
+                gameArgs += $" UserPath=\"{userPath}\"";
+
             gameArgs = gameArgs.Trim();
         }
         else
@@ -924,7 +935,7 @@ public class MainPage : Page
         }
 #endif
 
-        if (Util.CheckIsGameOpen())
+        if (GameHelpers.CheckIsGameOpen())
         {
             App.ShowMessageBlocking(
                 Loc.Localize("GameIsOpenError",
@@ -970,8 +981,8 @@ public class MainPage : Page
                     Thread.Sleep(30);
 
                     App.LoadingPage.Line2 = string.Format("Working on {0}/{1}", patcher.CurrentInstallIndex, patcher.Downloads.Count);
-                    App.LoadingPage.Line3 = string.Format("{0} left to download at {1}/s", Util.BytesToString(patcher.AllDownloadsLength < 0 ? 0 : patcher.AllDownloadsLength),
-                        Util.BytesToString(patcher.Speeds.Sum()));
+                    App.LoadingPage.Line3 = string.Format("{0} left to download at {1}/s", ApiHelpers.BytesToString(patcher.AllDownloadsLength < 0 ? 0 : patcher.AllDownloadsLength),
+                        ApiHelpers.BytesToString(patcher.Speeds.Sum()));
 
                     App.LoadingPage.Progress = patcher.CurrentInstallIndex / (float)patcher.Downloads.Count;
                 }
@@ -1006,7 +1017,7 @@ public class MainPage : Page
                         string.Format(
                             Loc.Localize("FreeSpaceError",
                                 "There is not enough space on your drive to download patches.\n\nYou can change the location patches are downloaded to in the settings.\n\nRequired:{0}\nFree:{1}"),
-                            Util.BytesToString(sex.BytesRequired), Util.BytesToString(sex.BytesFree)), "XIVLauncher Error");
+                            ApiHelpers.BytesToString(sex.BytesRequired), ApiHelpers.BytesToString(sex.BytesFree)), "XIVLauncher Error");
                     break;
 
                 case NotEnoughSpaceException.SpaceKind.AllPatches:
@@ -1014,7 +1025,7 @@ public class MainPage : Page
                         string.Format(
                             Loc.Localize("FreeSpaceErrorAll",
                                 "There is not enough space on your drive to download all patches.\n\nYou can change the location patches are downloaded to in the XIVLauncher settings.\n\nRequired:{0}\nFree:{1}"),
-                            Util.BytesToString(sex.BytesRequired), Util.BytesToString(sex.BytesFree)), "XIVLauncher Error");
+                            ApiHelpers.BytesToString(sex.BytesRequired), ApiHelpers.BytesToString(sex.BytesFree)), "XIVLauncher Error");
                     break;
 
                 case NotEnoughSpaceException.SpaceKind.Game:
@@ -1022,7 +1033,7 @@ public class MainPage : Page
                         string.Format(
                             Loc.Localize("FreeSpaceGameError",
                                 "There is not enough space on your drive to install patches.\n\nYou can change the location the game is installed to in the settings.\n\nRequired:{0}\nFree:{1}"),
-                            Util.BytesToString(sex.BytesRequired), Util.BytesToString(sex.BytesFree)), "XIVLauncher Error");
+                            ApiHelpers.BytesToString(sex.BytesRequired), ApiHelpers.BytesToString(sex.BytesFree)), "XIVLauncher Error");
                     break;
 
                 default:

@@ -1,3 +1,7 @@
+
+
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,6 +23,7 @@ using XIVLauncher.Common.Game.Patch.PatchList;
 using XIVLauncher.Common.Encryption;
 using XIVLauncher.Common.Game.Exceptions;
 using XIVLauncher.Common.PlatformAbstractions;
+using XIVLauncher.Common.Util;
 using System.Diagnostics;
 
 #nullable enable
@@ -148,7 +153,6 @@ public class SqexLauncher : ILauncher
         // no-op for SqexLauncher, overridden by SteamSqexLauncher
     }
 
-
     public Process? LaunchGame(IGameRunner runner, string sessionId, int region, int expansionLevel,
                               string additionalArguments, DirectoryInfo gamePath, bool isDx11,
                               ClientLanguage language, bool encryptArguments, DpiAwareness dpiAwareness)
@@ -267,7 +271,6 @@ public class SqexLauncher : ILauncher
         request.Headers.AddWithoutValidation("X-Hash-Check", "enabled");
         request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);
 
-        Util.EnsureVersionSanity(gamePath, this.oauthLoginResult.MaxExpansion);
         request.Content = new StringContent(GetVersionReport(gamePath, this.oauthLoginResult.MaxExpansion, forceBaseVersion));
 
         var resp = await this.client.SendAsync(request);
@@ -412,7 +415,7 @@ public class SqexLauncher : ILauncher
     {
         var bytes = File.ReadAllBytes(file);
 
-        var hash = new SHA1Managed().ComputeHash(bytes);
+        var hash = SHA1.Create().ComputeHash(bytes);
         var hashstring = string.Join("", hash.Select(b => b.ToString("x2")).ToArray());
 
         var length = new FileInfo(file).Length;
@@ -426,7 +429,7 @@ public class SqexLauncher : ILauncher
         {
             var reply = Encoding.UTF8.GetString(
                 await DownloadAsLauncher(
-                    $"https://frontier.ffxiv.com/worldStatus/gate_status.json?lang={language.GetLangCode()}&_={Util.GetUnixMillis()}", language).ConfigureAwait(true));
+                    $"https://frontier.ffxiv.com/worldStatus/gate_status.json?lang={language.GetLangCode()}&_={ApiHelpers.GetUnixMillis()}", language).ConfigureAwait(true));
 
             return JsonConvert.DeserializeObject<GateStatus>(reply);
         }
@@ -442,7 +445,7 @@ public class SqexLauncher : ILauncher
         {
             var reply = Encoding.UTF8.GetString(
                 await DownloadAsLauncher(
-                    $"https://frontier.ffxiv.com/worldStatus/login_status.json?_={Util.GetUnixMillis()}", ClientLanguage.English).ConfigureAwait(true));
+                    $"https://frontier.ffxiv.com/worldStatus/login_status.json?_={ApiHelpers.GetUnixMillis()}", ClientLanguage.English).ConfigureAwait(true));
 
             return Convert.ToBoolean(int.Parse(reply[10].ToString()));
         }
