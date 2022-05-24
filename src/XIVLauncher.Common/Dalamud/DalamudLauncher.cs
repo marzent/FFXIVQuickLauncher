@@ -32,7 +32,7 @@ namespace XIVLauncher.Common.Dalamud
             this.fakeLogin = fakeLogin;
         }
 
-        public const string REMOTE_BASE = "https://kamori.goats.dev/Dalamud/Release/VersionInfo?track=";
+        public const string REMOTE_BASE = "https://kamori.goats.dev/Dalamud/Release/VersionInfo?appId=xom&track=";
 
         public bool HoldForUpdate(DirectoryInfo gamePath)
         {

@@ -13,6 +13,9 @@ public static class PlatformHelpers
     public static Platform GetPlatform()
     {
         if (EnvironmentSettings.IsWine)
+            return Platform.Mac;
+
+        if (EnvironmentSettings.IsWine)
             return Platform.Win32OnLinux;
 
         // TODO(goat): Add mac here, once it's merged

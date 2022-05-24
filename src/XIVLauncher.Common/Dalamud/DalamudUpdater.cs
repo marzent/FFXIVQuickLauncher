@@ -46,7 +46,7 @@ namespace XIVLauncher.Common.Dalamud
 
         public DirectoryInfo AssetDirectory { get; private set; }
 
-        public IDalamudLoadingOverlay Overlay { get; set; }
+        public IDalamudLoadingOverlay? Overlay { get; set; }
 
         public enum DownloadState
         {

@@ -3,6 +3,7 @@
     public static class EnvironmentSettings
     {
         public static bool IsWine => CheckEnvBool("XL_WINEONLINUX");
+        public static bool IsMac => CheckEnvBool("XL_WINEONMAC");
         public static bool IsHardwareRendered => CheckEnvBool("XL_HWRENDER");
         public static bool IsDisableUpdates => CheckEnvBool("XL_NOAUTOUPDATE");
         public static bool IsPreRelease => CheckEnvBool("XL_PRERELEASE");

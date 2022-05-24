@@ -7,11 +7,15 @@ using XIVLauncher.Common.PlatformAbstractions;
 using XIVLauncher.Common.Windows;
 using XIVLauncher.Common.Unix;
 using XIVLauncher.Common.Unix.Compatibility;
+using XIVLauncher.Common.Util;
 using XIVLauncher.NativeAOT.Configuration;
 using static XIVLauncher.Common.Unix.Compatibility.Dxvk;
 using XIVLauncher.Common.Game.Launcher;
 using XIVLauncher.PlatformAbstractions;
 using XIVLauncher.NativeAOT;
+using Newtonsoft.Json;
+using XIVLauncher.Common.Game;
+using XIVLauncher.Common.Patching;
 
 namespace NativeLibrary;
 
@@ -30,21 +34,20 @@ public class Program
     public const uint STEAM_APP_ID = 39210;
     public const uint STEAM_APP_ID_FT = 312060;
 
-    [UnmanagedCallersOnly(EntryPoint = "xl_init")]
-    public static void Init(IntPtr storagePath)
+    [UnmanagedCallersOnly(EntryPoint = "initXL")]
+    public static void Init(IntPtr appName, IntPtr storagePath)
     {
-        storage = new Storage("XIVLauncher.NativeAOT", Marshal.PtrToStringAnsi(storagePath)!);
+        storage = new Storage(Marshal.PtrToStringAnsi(appName)!, Marshal.PtrToStringAnsi(storagePath)!);
 
         Log.Logger = new LoggerConfiguration()
                      .WriteTo.Async(a =>
                          a.File(Path.Combine(storage.GetFolder("logs").FullName, "launcher.log")))
                      .WriteTo.Console()
-                     .WriteTo.Debug()
                      .MinimumLevel.Verbose()
                      .CreateLogger();
 
         Log.Information("========================================================");
-        Log.Information("Starting a session(XIVLauncher.NativeAOT)");
+        Log.Information($"Starting a session({Marshal.PtrToStringAnsi(appName)!})");
 
         try
         {
@@ -69,8 +72,7 @@ public class Program
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Couldn't init Steam with game AppIds, trying FT");
-                Steam.Initialize(STEAM_APP_ID_FT);
+                Log.Error(ex, "Couldn't init Steam with game AppIds");
             }
         }
         catch (Exception ex)
@@ -78,14 +80,25 @@ public class Program
             Log.Error(ex, "Steam couldn't load");
         }
 
-        DalamudUpdater = new DalamudUpdater(storage.GetFolder("dalamud"), storage.GetFolder("runtime"), storage.GetFolder("dalamudAssets"), storage.Root, null);
+        var dalamudLoadInfo = new DalamudOverlayInfoProxy();
+        DalamudUpdater = new DalamudUpdater(storage.GetFolder("dalamud"), storage.GetFolder("runtime"), storage.GetFolder("dalamudAssets"), storage.Root, null)
+        {
+            Overlay = dalamudLoadInfo
+        };
         DalamudUpdater.Run();
 
         UniqueIdCache = new CommonUniqueIdCache(storage.GetFile("uidCache.json"));
         Launcher = new SqexLauncher(UniqueIdCache, Program.CommonSettings);
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "xl_createCompatToolsInstance")]
+    [UnmanagedCallersOnly(EntryPoint = "addEnviromentVariable")]
+    public static void AddEnviromentVariable(IntPtr key, IntPtr value)
+    {
+        var kvp = new KeyValuePair<string, string>(Marshal.PtrToStringAnsi(key)!, Marshal.PtrToStringAnsi(value)!);
+        Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "createCompatToolsInstance")]
     public static void CreateCompatToolsInstance(IntPtr winePath, IntPtr wineDebugVars, bool esync)
     {
         var wineLogFile = new FileInfo(Path.Combine(storage!.GetFolder("logs").FullName, "wine.log"));
@@ -95,15 +108,15 @@ public class Program
         CompatibilityTools = new CompatibilityTools(wineSettings, DxvkHudType.None, false, true, toolsFolder);
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "xl_generateAcceptLanguage")]
+    [UnmanagedCallersOnly(EntryPoint = "generateAcceptLanguage")]
     public static IntPtr GenerateAcceptLanguage(int seed)
     {
         // Needs to be freed by the caller
-        return (IntPtr)Marshal.StringToHGlobalAnsi(Util.GenerateAcceptLanguage(seed));
+        return Marshal.StringToHGlobalAnsi(ApiHelpers.GenerateAcceptLanguage(seed));
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "xl_loadConfig")]
-    public static void LoadConfig(IntPtr acceptLanguage, IntPtr gamePath, IntPtr gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, IntPtr patchPath, byte patchAcquisitionMethod, Int64 patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod)
+    [UnmanagedCallersOnly(EntryPoint = "loadConfig")]
+    public static void LoadConfig(IntPtr acceptLanguage, IntPtr gamePath, IntPtr gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, IntPtr patchPath, byte patchAcquisitionMethod, Int64 patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay)
     {
         Config = new LauncherConfig
         {
@@ -122,14 +135,152 @@ public class Program
             PatchSpeedLimit = patchSpeedLimit,
 
             DalamudEnabled = dalamudEnabled,
-            DalamudLoadMethod = (DalamudLoadMethod)dalamudLoadMethod
+            DalamudLoadMethod = (DalamudLoadMethod)dalamudLoadMethod,
+            DalamudLoadDelay = dalamudLoadDelay
         };
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "xl_login")]
-    public static bool Login(IntPtr username, IntPtr password, IntPtr otp, bool isSteam, byte loginAction)
+    [UnmanagedCallersOnly(EntryPoint = "fakeLogin")]
+    public static void FakeLogin()
     {
-        return LaunchServices.Login(Marshal.PtrToStringAnsi(username)!, Marshal.PtrToStringAnsi(password)!, Marshal.PtrToStringAnsi(otp)!, isSteam, loginAction).Result;
+        LaunchServices.EnsureLauncherAffinity(false);
+        IGameRunner gameRunner;
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            gameRunner = new WindowsGameRunner(null, false);
+        else
+            gameRunner = new UnixGameRunner(Program.CompatibilityTools, null, false);
+
+        Launcher!.LaunchGame(gameRunner, "0", 1, 2, "", Program.Config!.GamePath!, true, ClientLanguage.Japanese, true, DpiAwareness.Unaware);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "tryLoginToGame")]
+    public static IntPtr TryLoginToGame(IntPtr username, IntPtr password, IntPtr otp, bool isSteam)
+    {
+        try
+        {
+            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringAnsi(username)!, Marshal.PtrToStringAnsi(password)!, Marshal.PtrToStringAnsi(otp)!, isSteam).Result);
+        }
+        catch (AggregateException ex)
+        {
+            string lastException = "";
+            foreach (var iex in ex.InnerExceptions)
+            {
+                Log.Error(iex, "An error during login occured");
+                lastException = iex.Message;
+            }
+            return Marshal.StringToHGlobalAnsi(lastException);
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "getPatcherUserAgent")]
+    public static IntPtr GetPatcherUserAgent()
+    {
+        return Marshal.StringToHGlobalAnsi(Constants.PatcherUserAgent);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "getBootPatches")]
+    public static IntPtr GetBootPatches()
+    {
+        return Marshal.StringToHGlobalAnsi(LaunchServices.GetBootPatches().Result);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "installPatch")]
+    public static IntPtr InstallPatch(IntPtr patch, IntPtr repo)
+    {
+        try
+        {
+            RemotePatchInstaller.InstallPatch(Marshal.PtrToStringAnsi(patch)!, Marshal.PtrToStringAnsi(repo)!);
+            Log.Information("OK");
+            return Marshal.StringToHGlobalAnsi("OK");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Patch installation failed");
+            return Marshal.StringToHGlobalAnsi(ex.Message);
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "startGame")]
+    public static IntPtr StartGame(IntPtr loginResultJSON)
+    {
+        try
+        {
+            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringAnsi(loginResultJSON)!);
+            var process = LaunchServices.StartGameAndAddon(loginResult).Result;
+            var ret = new DalamudConsoleOutput
+            {
+                Handle = (long)process.Handle,
+                Pid = process.Id
+            };
+            return Marshal.StringToHGlobalAnsi(JsonConvert.SerializeObject(ret));
+        }
+        catch (AggregateException ex)
+        {
+            string lastException = "";
+            foreach (var iex in ex.InnerExceptions)
+            {
+                Log.Error(iex, "An error during game startup has occured");
+                lastException = iex.Message;
+            }
+            return Marshal.StringToHGlobalAnsi(lastException);
+        }
+        catch (Exception ex)
+        {
+            return Marshal.StringToHGlobalAnsi(ex.Message);
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "getExitCode")]
+    public static int GetExitCode(int pid)
+    {
+        try
+        {
+            return LaunchServices.GetExitCode(pid).Result;
+        }
+        catch (AggregateException ex)
+        {
+            foreach (var iex in ex.InnerExceptions)
+            {
+                Log.Error(iex, $"An error occured getting the exit code of pid {pid}");
+            }
+            return -42069;
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "writeLogLine")]
+    public static void WriteLogLine(byte logLevel, IntPtr message)
+    {
+        Log.Write((Serilog.Events.LogEventLevel)logLevel, Marshal.PtrToStringAnsi(message)!);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "runInPrefix")]
+    public static void RunInPrefix(IntPtr command)
+    {
+        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringAnsi(command)!);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "runInPrefixBlocking")]
+    public static void RunInPrefixBlocking(IntPtr command)
+    {
+        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringAnsi(command)!).WaitForExit();
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "addRegistryKey")]
+    public static void AddRegistryKey(IntPtr key, IntPtr value, IntPtr data)
+    {
+        CompatibilityTools!.AddRegistryKey(Marshal.PtrToStringAnsi(key)!, Marshal.PtrToStringAnsi(value)!, Marshal.PtrToStringAnsi(data)!);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "getProcessIds")]
+    public static IntPtr GetProcessIds(IntPtr executableName)
+    {
+        var pids = CompatibilityTools!.GetProcessIds(Marshal.PtrToStringAnsi(executableName)!);
+        return Marshal.StringToHGlobalAnsi(string.Join(" ", pids));
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "killWine")]
+    public static void KillWine()
+    {
+        CompatibilityTools!.Kill();
     }
 }
-

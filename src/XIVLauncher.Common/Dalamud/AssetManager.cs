@@ -14,7 +14,7 @@ namespace XIVLauncher.Common.Dalamud
 {
     public class AssetManager
     {
-        private const string ASSET_STORE_URL = "https://kamori.goats.dev/Dalamud/Asset/Meta";
+        private const string ASSET_STORE_URL = "https://kamori.goats.dev/Dalamud/Asset/Meta?appId=xom";
 
         internal class AssetInfo
         {

@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using CheapLoc;
 using NativeLibrary;
+using Newtonsoft.Json;
 using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
@@ -25,34 +26,13 @@ public class LaunchServices
         Fake,
     }
 
-    public static async Task<bool> Login(string username, string password, string otp, bool isSteam, byte loginAction)
+    public static async Task<string> TryLoginToGame(string username, string password, string otp, bool isSteam)
     {
-        var action = (LoginAction)loginAction;
+        var action = LoginAction.Game;
 
-        if (action == LoginAction.Fake)
-        {
-            EnsureLauncherAffinity(false);
-            IGameRunner gameRunner;
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                gameRunner = new WindowsGameRunner(null, false);
-            else
-                gameRunner = new UnixGameRunner(Program.CompatibilityTools, null, false);
+        var result = await TryLoginToGame(username, password, otp, isSteam, action).ConfigureAwait(false);
 
-            Program.Launcher!.LaunchGame(gameRunner, "0", 1, 2, "", Program.Config!.GamePath!, true, ClientLanguage.Japanese, true, DpiAwareness.Unaware);
-
-            return true;
-        }
-
-        var bootRes = await HandleBootCheck().ConfigureAwait(false);
-
-        if (!bootRes)
-            return false;
-
-        var isOtp = !string.IsNullOrEmpty(otp);
-
-        var loginResult = await TryLoginToGame(username, password, otp, isSteam, action).ConfigureAwait(false);
-
-        return await TryProcessLoginResult(loginResult, isSteam, action).ConfigureAwait(false);
+        return JsonConvert.SerializeObject(result, Formatting.Indented); ;
     }
 
     public static void EnsureLauncherAffinity(bool isSteam)
@@ -69,37 +49,18 @@ public class LaunchServices
         }
     }
 
-    private static async Task<bool> HandleBootCheck()
+    public static async Task<string> GetBootPatches()
     {
         try
         {
-            if (Program.Config!.PatchPath is { Exists: false })
-            {
-                Directory.CreateDirectory(Program.Config.PatchPath.FullName);
-            }
+            var bootPatches = await Program.Launcher!.CheckBootVersion(Program.Config!.GamePath).ConfigureAwait(false);
 
-            PatchListEntry[] bootPatches = null;
-
-            try
-            {
-                bootPatches = await Program.Launcher!.CheckBootVersion(Program.Config.GamePath).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Unable to check boot version");
-                return false;
-            }
-
-            if (bootPatches.Length == 0)
-                return true;
-
-            return false;
-            //return await TryHandlePatchAsync(Repository.Boot, bootPatches, null).ConfigureAwait(false);
+            return JsonConvert.SerializeObject(bootPatches, Formatting.Indented);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Patch Boot exception");
-            return false;
+            Log.Error(ex, "Unable to check boot version");
+            return ex.Message;
         }
     }
 
@@ -128,15 +89,7 @@ public class LaunchServices
 
         if (gateStatus == false)
         {
-            /*
-            CustomMessageBox.Builder.NewFrom(Loc.Localize("GateClosed", "FFXIV is currently under maintenance. Please try again later or see official sources for more information."))
-                            .WithImage(MessageBoxImage.Asterisk)
-                            .WithButtons(MessageBoxButton.OK)
-                            .WithCaption("XIVLauncher")
-                            .WithParentWindow(_window)
-                            .Show();*/
-
-            Log.Error("Maintenance is in progress.");
+            Log.Error(Loc.Localize("GateClosed", "FFXIV is currently under maintenance. Please try again later or see official sources for more information."));
 
             return null;
         }
@@ -160,107 +113,107 @@ public class LaunchServices
         }
     }
 
-    private static async Task<bool> TryProcessLoginResult(LoginResult loginResult, bool isSteam, LoginAction action)
-    {
-        if (loginResult.State == LoginState.NoService)
-        {
-            throw new Exception(Loc.Localize("LoginNoServiceMessage",
-                    "This Square Enix account cannot play FINAL FANTASY XIV. Please make sure that you have an active subscription and that it is paid up.\n\nIf you bought FINAL FANTASY XIV on Steam, make sure to check the \"Use Steam service account\" checkbox while logging in.\nIf Auto-Login is enabled, hold shift while starting to access settings."));
+    //private static async Task<bool> TryProcessLoginResult(LoginResult loginResult, bool isSteam, LoginAction action)
+    //{
+    //    if (loginResult.State == LoginState.NoService)
+    //    {
+    //        throw new Exception(Loc.Localize("LoginNoServiceMessage",
+    //                "This Square Enix account cannot play FINAL FANTASY XIV. Please make sure that you have an active subscription and that it is paid up.\n\nIf you bought FINAL FANTASY XIV on Steam, make sure to check the \"Use Steam service account\" checkbox while logging in.\nIf Auto-Login is enabled, hold shift while starting to access settings."));
 
-            return false;
-        }
+    //        return false;
+    //    }
 
-        if (loginResult.State == LoginState.NoTerms)
-        {
+    //    if (loginResult.State == LoginState.NoTerms)
+    //    {
 
-            throw new Exception(Loc.Localize("LoginAcceptTermsMessage",
-                    "Please accept the FINAL FANTASY XIV Terms of Use in the official launcher."));
+    //        throw new Exception(Loc.Localize("LoginAcceptTermsMessage",
+    //                "Please accept the FINAL FANTASY XIV Terms of Use in the official launcher."));
 
-            return false;
-        }
+    //        return false;
+    //    }
 
-        if (loginResult.State == LoginState.NeedsPatchBoot)
-        {
-            throw new Exception("Boot conflict, need reinstall");
+    //    if (loginResult.State == LoginState.NeedsPatchBoot)
+    //    {
+    //        throw new Exception("Boot conflict, need reinstall");
 
-            return false;
-        }
+    //        return false;
+    //    }
 
-        if (action == LoginAction.Repair)
-        {
-            try
-            {
-                if (loginResult.State == LoginState.NeedsPatchGame)
-                {
-                    //if (!await RepairGame(loginResult).ConfigureAwait(false))
-                        return false;
+    //    if (action == LoginAction.Repair)
+    //    {
+    //        try
+    //        {
+    //            if (loginResult.State == LoginState.NeedsPatchGame)
+    //            {
+    //                //if (!await RepairGame(loginResult).ConfigureAwait(false))
+    //                    return false;
 
-                    loginResult.State = LoginState.Ok;
-                    action = LoginAction.Game;
-                }
-                else
-                {
-                    throw new Exception(Loc.Localize("LoginRepairResponseIsNotNeedsPatchGame",
-                            "The server sent an incorrect response - the repair cannot proceed."));
+    //                loginResult.State = LoginState.Ok;
+    //                action = LoginAction.Game;
+    //            }
+    //            else
+    //            {
+    //                throw new Exception(Loc.Localize("LoginRepairResponseIsNotNeedsPatchGame",
+    //                        "The server sent an incorrect response - the repair cannot proceed."));
 
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                /*
-                 * We should never reach here.
-                 * If server responds badly, then it should not even have reached this point, as error cases should have been handled before.
-                 * If RepairGame was unsuccessful, then it should have handled all of its possible errors, instead of propagating it upwards.
-                 */
-                throw;
-                return false;
-            }
-        }
+    //                return false;
+    //            }
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            /*
+    //             * We should never reach here.
+    //             * If server responds badly, then it should not even have reached this point, as error cases should have been handled before.
+    //             * If RepairGame was unsuccessful, then it should have handled all of its possible errors, instead of propagating it upwards.
+    //             */
+    //            throw;
+    //            return false;
+    //        }
+    //    }
 
-        if (loginResult.State == LoginState.NeedsPatchGame)
-        {
-            //if (!await InstallGamePatch(loginResult).ConfigureAwait(false))
-            {
-                Log.Error("patchSuccess != true");
-                return false;
-            }
+    //    if (loginResult.State == LoginState.NeedsPatchGame)
+    //    {
+    //        //if (!await InstallGamePatch(loginResult).ConfigureAwait(false))
+    //        {
+    //            Log.Error("patchSuccess != true");
+    //            return false;
+    //        }
 
-            loginResult.State = LoginState.Ok;
-            action = LoginAction.Game;
-        }
+    //        loginResult.State = LoginState.Ok;
+    //        action = LoginAction.Game;
+    //    }
 
-        if (action == LoginAction.GameNoLaunch)
-        {
-            return false;
-        }
+    //    if (action == LoginAction.GameNoLaunch)
+    //    {
+    //        return false;
+    //    }
 
-        Debug.Assert(loginResult.State == LoginState.Ok);
+    //    Debug.Assert(loginResult.State == LoginState.Ok);
 
-        while (true)
-        {
-            List<Exception> exceptions = new();
+    //    while (true)
+    //    {
+    //        List<Exception> exceptions = new();
 
-            try
-            {
-                using var process = await StartGameAndAddon(loginResult, isSteam, action == LoginAction.GameNoDalamud).ConfigureAwait(false);
+    //        try
+    //        {
+    //            using var process = await StartGameAndAddon(loginResult, isSteam, action == LoginAction.GameNoDalamud).ConfigureAwait(false);
 
-                if (process is null)
-                    throw new Exception("Could not obtain Process Handle");
+    //            if (process is null)
+    //                throw new Exception("Could not obtain Process Handle");
 
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "StartGameAndError resulted in an exception.");
+    //            return true;
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            Log.Error(ex, "StartGameAndError resulted in an exception.");
 
-                exceptions.Add(ex);
-                throw;
-            }
-        }
-    }
+    //            exceptions.Add(ex);
+    //            throw;
+    //        }
+    //    }
+    //}
 
-    public static async Task<Process> StartGameAndAddon(LoginResult loginResult, bool isSteam, bool forceNoDalamud)
+    public static async Task<Process> StartGameAndAddon(LoginResult loginResult)
     {
         var dalamudOk = false;
 
@@ -281,8 +234,8 @@ public class LaunchServices
                 throw new NotImplementedException();
         }
 
-        var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
-            Program.Config.GamePath, Program.storage.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay);
+        var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
+            Program.Config.GamePath, Program.storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay);
 
         try
         {
@@ -291,29 +244,13 @@ public class LaunchServices
         catch (IDalamudCompatibilityCheck.NoRedistsException ex)
         {
             Log.Error(ex, "No Dalamud Redists found");
-
-            throw;
-            /*
-            CustomMessageBox.Show(
-                Loc.Localize("DalamudVc2019RedistError",
-                    "The XIVLauncher in-game addon needs the Microsoft Visual C++ 2015-2019 redistributable to be installed to continue. Please install it from the Microsoft homepage."),
-                "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Exclamation, parentWindow: _window);
-                */
         }
         catch (IDalamudCompatibilityCheck.ArchitectureNotSupportedException ex)
         {
             Log.Error(ex, "Architecture not supported");
-
-            throw;
-            /*
-            CustomMessageBox.Show(
-                Loc.Localize("DalamudArchError",
-                    "Dalamud cannot run your computer's architecture. Please make sure that you are running a 64-bit version of Windows.\nIf you are using Windows on ARM, please make sure that x64-Emulation is enabled for XIVLauncher."),
-                "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Exclamation, parentWindow: _window);
-                */
         }
 
-        if (Program.Config.DalamudEnabled.GetValueOrDefault(true) && !forceNoDalamud && Program.Config.IsDx11.GetValueOrDefault(true))
+        if (true)
         {
             try
             {
@@ -328,15 +265,6 @@ public class LaunchServices
                     "Could not launch Dalamud successfully. This might be caused by your antivirus.\nTo prevent this, please add an exception for the folder \"%AppData%\\XIVLauncher\\addons\".");
 
                 throw;
-                /*
-                CustomMessageBox.Builder
-                                .NewFrom(runnerErrorMessage)
-                                .WithImage(MessageBoxImage.Error)
-                                .WithButtons(MessageBoxButton.OK)
-                                .WithShowHelpLinks()
-                                .WithParentWindow(_window)
-                                .Show();
-                                */
             }
         }
 
@@ -350,15 +278,15 @@ public class LaunchServices
         }
         else if (Environment.OSVersion.Platform == PlatformID.Unix)
         {
-            var signal = new ManualResetEvent(false);
-            var isFailed = false;
-
             Log.Information("Starting game...", "Have fun!");
 
             runner = new UnixGameRunner(Program.CompatibilityTools, dalamudLauncher, dalamudOk);
 
-            gameArgs += $" UserPath=\"{Program.CompatibilityTools.UnixToWinePath(Program.Config.GameConfigPath.FullName)}\"";
-            gameArgs = gameArgs.Trim();
+            var userPath = Program.CompatibilityTools!.UnixToWinePath(Program.Config!.GameConfigPath!.FullName);
+            if (Program.Config!.IsEncryptArgs.GetValueOrDefault(true))
+                gameArgs += $" UserPath={userPath}";
+            else
+                gameArgs += $" UserPath=\"{userPath}\"";
         }
         else
         {
@@ -366,7 +294,7 @@ public class LaunchServices
         }
 
         // We won't do any sanity checks here anymore, since that should be handled in StartLogin
-        var launchedProcess = Program.Launcher.LaunchGame(runner,
+        var launchedProcess = Program.Launcher!.LaunchGame(runner,
             loginResult.UniqueId,
             loginResult.OauthLogin.Region,
             loginResult.OauthLogin.MaxExpansion,
@@ -383,9 +311,16 @@ public class LaunchServices
             return null;
         }
 
-        Log.Debug("Waiting for game to exit");
+        return launchedProcess!;
+    }
 
-        await Task.Run(() => launchedProcess!.WaitForExit()).ConfigureAwait(false);
+    public static async Task<int> GetExitCode(int pid)
+    {
+        var process = Process.GetProcessById(pid);
+
+        Log.Debug($"Waiting for game process with handle {process.Handle} and pid {pid} to exit");
+
+        await Task.Run(() => process.WaitForExit()).ConfigureAwait(false);
 
         Log.Verbose("Game has exited");
 
@@ -401,8 +336,8 @@ public class LaunchServices
             Log.Error(ex, "Could not shut down Steam");
         }
 
-        return launchedProcess!;
-    }
+        return process.ExitCode;
+    } 
 }
 
 
