@@ -161,7 +161,7 @@ public class MainPage : Page
             App.EnsureLauncherAffinity(false);
             IGameRunner gameRunner;
             if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                gameRunner = new WindowsGameRunner(null, false);
+                gameRunner = new WindowsGameRunner(null, false, Program.DalamudUpdater.Runtime);
             else
                 gameRunner = new UnixGameRunner(Program.CompatibilityTools, null, false);
 
@@ -670,7 +670,7 @@ public class MainPage : Page
             try
             {
                 App.StartLoading("Waiting for Dalamud to be ready...", "This may take a little while. Please hold!");
-                dalamudOk = dalamudLauncher.HoldForUpdate(App.Settings.GamePath);
+                dalamudOk = dalamudLauncher.HoldForUpdate(App.Settings.GamePath) == DalamudLauncher.DalamudInstallState.Ok;
             }
             catch (DalamudRunnerException ex)
             {
@@ -698,7 +698,7 @@ public class MainPage : Page
 
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
-            runner = new WindowsGameRunner(dalamudLauncher, dalamudOk);
+            runner = new WindowsGameRunner(dalamudLauncher, dalamudOk, Program.DalamudUpdater.Runtime);
         }
         else if (Environment.OSVersion.Platform == PlatformID.Unix)
         {

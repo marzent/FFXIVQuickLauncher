@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -36,10 +37,14 @@ public class UnixDalamudRunner : IDalamudRunner
             () => { startInfo.AssetDirectory = compatibility.UnixToWinePath(startInfo.AssetDirectory); }
         );
 
-        environment.Add("DALAMUD_RUNTIME", dotnetRuntimePath);
+        var prevDalamudRuntime = Environment.GetEnvironmentVariable("DALAMUD_RUNTIME");
+        if (string.IsNullOrWhiteSpace(prevDalamudRuntime))
+            environment.Add("DALAMUD_RUNTIME", dotnetRuntimePath);
 
-        var launchArguments = new List<string> { $"\"{runner.FullName}\"", "launch",
-            $"-m", $"{(loadMethod == DalamudLoadMethod.EntryPoint ? "entrypoint" : "inject")}",
+        var launchArguments = new List<string> 
+        { 
+            $"\"{runner.FullName}\"", 
+            "launch",
             $"--mode={(loadMethod == DalamudLoadMethod.EntryPoint ? "entrypoint" : "inject")}",
             $"--game=\"{gameExePath}\"",
             $"--dalamud-working-directory=\"{startInfo.WorkingDirectory}\"",
@@ -78,7 +83,7 @@ public class UnixDalamudRunner : IDalamudRunner
             }
 
             var gameProcess = Process.GetProcessById(unixPid);
-            var handle = gameProcess.Handle;
+            Log.Verbose($"Got game process handle {gameProcess.Handle} with Unix pid {gameProcess.Id} and Wine pid {dalamudConsoleOutput.Pid}");
             return gameProcess;
         }
         catch (JsonReaderException ex)

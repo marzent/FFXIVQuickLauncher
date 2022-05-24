@@ -617,6 +617,9 @@ namespace XIVLauncher.Windows.ViewModel
                 {
                     using var process = await StartGameAndAddon(loginResult, isSteam, action == AfterLoginAction.StartWithoutDalamud).ConfigureAwait(false);
 
+                    if (process == null)
+                        return false;
+
                     if (process.ExitCode != 0 && (App.Settings.TreatNonZeroExitCodeAsFailure ?? false))
                     {
                         switch (new CustomMessageBox.Builder()
@@ -975,7 +978,7 @@ namespace XIVLauncher.Windows.ViewModel
             Environment.Exit(0);
         }
 
-        public async Task<Process> StartGameAndAddon(LoginResult loginResult, bool isSteam, bool forceNoDalamud)
+        public async Task<Process?> StartGameAndAddon(Launcher.LoginResult loginResult, bool isSteam, bool forceNoDalamud)
         {
             var dalamudLauncher = new DalamudLauncher(new WindowsDalamudRunner(), App.DalamudUpdater, App.Settings.InGameAddonLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
                 App.Settings.GamePath,
@@ -1012,9 +1015,13 @@ namespace XIVLauncher.Windows.ViewModel
 
             if (App.Settings.InGameAddonEnabled && !forceNoDalamud && App.Settings.IsDx11)
             {
+                var showEnsurementWarning = false;
+
                 try
                 {
-                    dalamudOk = dalamudLauncher.HoldForUpdate(App.Settings.GamePath);
+                    var dalamudStatus = dalamudLauncher.HoldForUpdate(App.Settings.GamePath);
+                    dalamudOk = dalamudStatus == DalamudLauncher.DalamudInstallState.Ok;
+                    showEnsurementWarning = dalamudStatus == DalamudLauncher.DalamudInstallState.Failed;
                 }
                 catch (DalamudRunnerException ex)
                 {
@@ -1032,7 +1039,7 @@ namespace XIVLauncher.Windows.ViewModel
                                     .Show();
                 }
 
-                if (!dalamudOk)
+                if (showEnsurementWarning)
                 {
                     var ensurementErrorMessage = Loc.Localize("DalamudEnsurementError",
                         "Could not download necessary data files to use Dalamud and plugins.\nThis is likely a problem with your internet connection - the game will start, but you will not be able to use plugins.");
@@ -1047,7 +1054,7 @@ namespace XIVLauncher.Windows.ViewModel
                 }
             }
 
-            var gameRunner = new WindowsGameRunner(dalamudLauncher, dalamudOk);
+            var gameRunner = new WindowsGameRunner(dalamudLauncher, dalamudOk, App.DalamudUpdater.Runtime);
 
             // We won't do any sanity checks here anymore, since that should be handled in StartLogin
             var launched = this.Launcher.LaunchGame(gameRunner,

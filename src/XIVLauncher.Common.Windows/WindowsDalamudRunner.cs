@@ -16,7 +16,9 @@ public class WindowsDalamudRunner : IDalamudRunner
     {
         var inheritableCurrentProcess = GetInheritableCurrentProcessHandle();
 
-        var launchArguments = new List<string> { "launch",
+        var launchArguments = new List<string>
+        {
+            "launch",
             $"--mode={(loadMethod == DalamudLoadMethod.EntryPoint ? "entrypoint" : "inject")}",
             $"--handle-owner={(long)inheritableCurrentProcess.Handle}",
             $"--game=\"{gameExe.FullName}\"",
@@ -27,7 +29,7 @@ public class WindowsDalamudRunner : IDalamudRunner
             $"--dalamud-asset-directory=\"{startInfo.AssetDirectory}\"",
             $"--dalamud-client-language={(int)startInfo.Language}",
             $"--dalamud-delay-initialize={startInfo.DelayInitializeMs}"
-            };
+        };
 
         if (loadMethod == DalamudLoadMethod.ACLonly)
             launchArguments.Add("--without-dalamud");
@@ -62,7 +64,31 @@ public class WindowsDalamudRunner : IDalamudRunner
         try
         {
             var dalamudConsoleOutput = JsonConvert.DeserializeObject<DalamudConsoleOutput>(output);
-            var gameProcess = new ExistingProcess((IntPtr)dalamudConsoleOutput.Handle);
+            Process gameProcess;
+
+            if (dalamudConsoleOutput.Handle == 0) 
+            {
+                Log.Warning($"Dalamud returned NULL process handle, attempting to recover by creating a new one from pid {dalamudConsoleOutput.Pid}...");
+                gameProcess = Process.GetProcessById(dalamudConsoleOutput.Pid);
+            }
+            else 
+            {
+                gameProcess = new ExistingProcess((IntPtr)dalamudConsoleOutput.Handle);
+            }
+
+            try 
+            {
+                Log.Verbose($"Got game process handle {gameProcess.Handle} with pid {gameProcess.Id}");
+            }
+            catch (InvalidOperationException ex) 
+            {
+                Log.Error(ex, $"Dalamud returned invalid process handle {gameProcess.Handle}, attempting to recover by creating a new one from pid {dalamudConsoleOutput.Pid}...");
+                gameProcess = Process.GetProcessById(dalamudConsoleOutput.Pid);
+                Log.Warning($"Recovered with process handle {gameProcess.Handle}");
+            }
+
+            if (gameProcess.Id != dalamudConsoleOutput.Pid)
+                Log.Warning($"Internal Process ID {gameProcess.Id} does not match Dalamud provided one {dalamudConsoleOutput.Pid}");
 
             return gameProcess;
         }
