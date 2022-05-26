@@ -86,35 +86,26 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
         public bool IsUnavailable => SourceIndex == SOURCE_INDEX_UNAVAILABLE;
         public bool IsFromSourceFile => !IsAllZeros && !IsEmptyBlock && !IsUnavailable;
 
-        public unsafe void WriteTo(BinaryWriter writer)
+        public void WriteTo(BinaryWriter writer)
         {
-            int unitSize = Marshal.SizeOf(this);
-            using var buf = ReusableByteBufferManager.GetBuffer(unitSize);
-
-            fixed (byte* pBuf = buf.Buffer)
-            {
-                fixed (IndexedZiPatchPartLocator* pLocator = &this)
-                {
-                    Buffer.MemoryCopy(pLocator, pBuf, unitSize, unitSize);
-                }
-            }
-
-            writer.Write(buf.Buffer, 0, unitSize);
+            writer.Write(this.TargetOffsetUint);
+            writer.Write(this.SourceOffsetUint);
+            writer.Write(this.TargetSizeAndFlags);
+            writer.Write(this.Crc32OrPlaceholderEntryDataUnits);
+            writer.Write(this.SplitDecodedSourceFromUshort);
+            writer.Write(this.TargetIndexByte);
+            writer.Write(this.SourceIndexByte);
         }
 
-        public unsafe void ReadFrom(BinaryReader reader)
+        public void ReadFrom(BinaryReader reader)
         {
-            int unitSize = Marshal.SizeOf(this);
-            using var buf = ReusableByteBufferManager.GetBuffer(unitSize);
-            reader.Read(buf.Buffer, 0, unitSize);
-
-            fixed (byte* pBuf = buf.Buffer)
-            {
-                fixed (IndexedZiPatchPartLocator* pLocator = &this)
-                {
-                    Buffer.MemoryCopy(pBuf, pLocator, unitSize, unitSize);
-                }
-            }
+            this.TargetOffsetUint = reader.ReadUInt32();
+            this.SourceOffsetUint = reader.ReadUInt32();
+            this.TargetSizeAndFlags = reader.ReadUInt32();
+            this.Crc32OrPlaceholderEntryDataUnits = reader.ReadUInt32();
+            this.SplitDecodedSourceFromUshort = reader.ReadUInt16();
+            this.TargetIndexByte = reader.ReadByte();
+            this.SourceIndexByte = reader.ReadByte();
         }
 
         public int CompareTo(IndexedZiPatchPartLocator other)
