@@ -70,7 +70,7 @@ public class SqexLauncher : ILauncher
 
     // The user agent for frontier pages. {0} has to be replaced by a unique computer id and its checksum
     private const string USER_AGENT_TEMPLATE = "SQEXAuthor/2.0.0(Windows 6.2; ja-jp; {0})";
-    private readonly string _userAgent = GenerateUserAgent();
+    private string userAgent => GenerateUserAgent();
 
     private static readonly string[] FilesToHash =
     {
@@ -320,7 +320,7 @@ public class SqexLauncher : ILauncher
         request.Headers.AddWithoutValidation("Referer", GenerateFrontierReferer(this.settings.ClientLanguage.GetValueOrDefault(ClientLanguage.English)));
         request.Headers.AddWithoutValidation("Accept-Encoding", "gzip, deflate");
         request.Headers.AddWithoutValidation("Accept-Language", this.settings.AcceptLanguage);
-        request.Headers.AddWithoutValidation("User-Agent", _userAgent);
+        request.Headers.AddWithoutValidation("User-Agent", userAgent);
         request.Headers.AddWithoutValidation("Connection", "Keep-Alive");
         request.Headers.AddWithoutValidation("Cookie", "_rsid=\"\"");
 
@@ -373,7 +373,7 @@ public class SqexLauncher : ILauncher
         request.Headers.AddWithoutValidation("Accept", "image/gif, image/jpeg, image/pjpeg, application/x-ms-application, application/xaml+xml, application/x-ms-xbap, */*");
         request.Headers.AddWithoutValidation("Referer", topUrl);
         request.Headers.AddWithoutValidation("Accept-Language", this.settings.AcceptLanguage);
-        request.Headers.AddWithoutValidation("User-Agent", _userAgent);
+        request.Headers.AddWithoutValidation("User-Agent", userAgent);
         //request.Headers.AddWithoutValidation("Content-Type", "application/x-www-form-urlencoded");
         request.Headers.AddWithoutValidation("Accept-Encoding", "gzip, deflate");
         request.Headers.AddWithoutValidation("Host", "ffxiv-login.square-enix.com");
@@ -478,7 +478,7 @@ public class SqexLauncher : ILauncher
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
 
-        request.Headers.AddWithoutValidation("User-Agent", _userAgent);
+        request.Headers.AddWithoutValidation("User-Agent", userAgent);
 
         if (!string.IsNullOrEmpty(contentType))
         {
@@ -517,7 +517,7 @@ public class SqexLauncher : ILauncher
         return new string(formatted);
     }
 
-    private static string GenerateUserAgent()
+    public virtual string GenerateUserAgent()
     {
         return string.Format(USER_AGENT_TEMPLATE, MakeComputerId());
     }

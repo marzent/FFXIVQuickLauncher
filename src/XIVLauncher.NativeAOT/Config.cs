@@ -6,6 +6,13 @@ using XIVLauncher.Common.Unix.Compatibility;
 
 namespace XIVLauncher.NativeAOT.Configuration;
 
+public enum License
+{
+    Windows,
+    Mac,
+    Steam
+}
+
 public class LauncherConfig
 {
     public string? AcceptLanguage { get; set; }
@@ -23,6 +30,8 @@ public class LauncherConfig
     public bool? IsDx11 { get; set; }
 
     public bool? IsEncryptArgs { get; set; }
+
+    public License? License { get; set; }
 
     public bool? IsFt { get; set; }
 

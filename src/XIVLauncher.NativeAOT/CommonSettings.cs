@@ -8,9 +8,20 @@ public class CommonSettings : ISettings
 {
     private readonly LauncherConfig config;
 
-    public CommonSettings(LauncherConfig config)
+    public CommonSettings()
     {
-        this.config = config;
+        this.config = NativeLibrary.Program.Config!;
+    }
+
+    private static CommonSettings instance;
+
+    public static CommonSettings Instance
+    {
+        get
+        {
+            instance ??= new CommonSettings();
+            return instance;
+        }
     }
 
     public string AcceptLanguage => this.config.AcceptLanguage!;

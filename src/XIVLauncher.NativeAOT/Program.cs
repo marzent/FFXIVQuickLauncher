@@ -23,7 +23,7 @@ public class Program
 {
     public static Storage? storage;
     public static LauncherConfig? Config { get; private set; }
-    public static CommonSettings CommonSettings => new(Config!);
+    public static CommonSettings CommonSettings => CommonSettings.Instance;
     public static DirectoryInfo DotnetRuntime => storage!.GetFolder("runtime");
     public static ISteam? Steam { get; private set; }
     public static DalamudUpdater? DalamudUpdater { get; private set; }
@@ -43,7 +43,11 @@ public class Program
                      .WriteTo.Async(a =>
                          a.File(Path.Combine(storage.GetFolder("logs").FullName, "launcher.log")))
                      .WriteTo.Console()
+#if DEBUG
                      .MinimumLevel.Verbose()
+#else
+                     .MinimumLevel.Information()
+#endif
                      .CreateLogger();
 
         Log.Information("========================================================");
@@ -89,6 +93,7 @@ public class Program
 
         UniqueIdCache = new CommonUniqueIdCache(storage.GetFile("uidCache.json"));
         Launcher = new SqexLauncher(UniqueIdCache, Program.CommonSettings);
+        LaunchServices.EnsureLauncherAffinity((License)Config!.License!);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "addEnviromentVariable")]
@@ -116,7 +121,7 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "loadConfig")]
-    public static void LoadConfig(IntPtr acceptLanguage, IntPtr gamePath, IntPtr gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, IntPtr patchPath, byte patchAcquisitionMethod, Int64 patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay)
+    public static void LoadConfig(IntPtr acceptLanguage, IntPtr gamePath, IntPtr gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, byte license, IntPtr patchPath, byte patchAcquisitionMethod, Int64 patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay)
     {
         Config = new LauncherConfig
         {
@@ -128,6 +133,7 @@ public class Program
 
             IsDx11 = isDx11,
             IsEncryptArgs = isEncryptArgs,
+            License = (License)license,
             IsFt = isFt,
 
             PatchPath = new DirectoryInfo(Marshal.PtrToStringAnsi(patchPath)!),
@@ -143,10 +149,10 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "fakeLogin")]
     public static void FakeLogin()
     {
-        LaunchServices.EnsureLauncherAffinity(false);
+        LaunchServices.EnsureLauncherAffinity((License)Config!.License!);
         IGameRunner gameRunner;
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            gameRunner = new WindowsGameRunner(null, false);
+            gameRunner = new WindowsGameRunner(null, false, Program.DalamudUpdater!.Runtime);
         else
             gameRunner = new UnixGameRunner(Program.CompatibilityTools, null, false);
 
@@ -154,11 +160,11 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "tryLoginToGame")]
-    public static IntPtr TryLoginToGame(IntPtr username, IntPtr password, IntPtr otp, bool isSteam)
+    public static IntPtr TryLoginToGame(IntPtr username, IntPtr password, IntPtr otp)
     {
         try
         {
-            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringAnsi(username)!, Marshal.PtrToStringAnsi(password)!, Marshal.PtrToStringAnsi(otp)!, isSteam).Result);
+            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringAnsi(username)!, Marshal.PtrToStringAnsi(password)!, Marshal.PtrToStringAnsi(otp)!).Result);
         }
         catch (AggregateException ex)
         {
@@ -170,6 +176,12 @@ public class Program
             }
             return Marshal.StringToHGlobalAnsi(lastException);
         }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "getUserAgent")]
+    public static IntPtr GetUserAgent()
+    {
+        return Marshal.StringToHGlobalAnsi(Launcher!.GenerateUserAgent());
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getPatcherUserAgent")]
@@ -196,6 +208,30 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "Patch installation failed");
+            return Marshal.StringToHGlobalAnsi(ex.Message);
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "repairGame")]
+    public static IntPtr RepairGame(IntPtr loginResultJSON)
+    {
+        try
+        {
+            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringAnsi(loginResultJSON)!);
+            return Marshal.StringToHGlobalAnsi(LaunchServices.RepairGame(loginResult).Result);
+        }
+        catch (AggregateException ex)
+        {
+            string lastException = "";
+            foreach (var iex in ex.InnerExceptions)
+            {
+                Log.Error(iex, "An error during game repair has occured");
+                lastException = iex.Message;
+            }
+            return Marshal.StringToHGlobalAnsi(lastException);
+        }
+        catch (Exception ex)
+        {
             return Marshal.StringToHGlobalAnsi(ex.Message);
         }
     }

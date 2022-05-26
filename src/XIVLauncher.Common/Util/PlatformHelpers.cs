@@ -10,15 +10,15 @@ namespace XIVLauncher.Common.Util;
 
 public static class PlatformHelpers
 {
+    public static bool IsMac { get; set; } = false; 
+
     public static Platform GetPlatform()
     {
-        if (EnvironmentSettings.IsWine)
+        if (IsMac)
             return Platform.Mac;
 
         if (EnvironmentSettings.IsWine)
             return Platform.Win32OnLinux;
-
-        // TODO(goat): Add mac here, once it's merged
 
         return Platform.Win32;
     }

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using CheapLoc;
 using NativeLibrary;
 using Newtonsoft.Json;
@@ -7,11 +6,14 @@ using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.Game;
+using XIVLauncher.Common.Game.Exceptions;
 using XIVLauncher.Common.Game.Launcher;
-using XIVLauncher.Common.Game.Patch.PatchList;
+using XIVLauncher.Common.Game.Patch;
 using XIVLauncher.Common.PlatformAbstractions;
 using XIVLauncher.Common.Unix;
+using XIVLauncher.Common.Util;
 using XIVLauncher.Common.Windows;
+using XIVLauncher.NativeAOT.Configuration;
 
 namespace XIVLauncher.NativeAOT;
 
@@ -26,26 +28,35 @@ public class LaunchServices
         Fake,
     }
 
-    public static async Task<string> TryLoginToGame(string username, string password, string otp, bool isSteam)
+    public static async Task<string> TryLoginToGame(string username, string password, string otp)
     {
         var action = LoginAction.Game;
 
-        var result = await TryLoginToGame(username, password, otp, isSteam, action).ConfigureAwait(false);
+        var result = await TryLoginToGame(username, password, otp, action).ConfigureAwait(false);
 
         return JsonConvert.SerializeObject(result, Formatting.Indented); ;
     }
 
-    public static void EnsureLauncherAffinity(bool isSteam)
+    public static void EnsureLauncherAffinity(License license)
     {
-        var isSteamLauncher = Program.Launcher is SteamSqexLauncher;
-
-        if (isSteamLauncher && !isSteam)
+        switch (license)
         {
-            Program.Launcher = new SqexLauncher(Program.UniqueIdCache!, Program.CommonSettings);
-        }
-        else if (!isSteamLauncher && isSteam)
-        {
-            Program.Launcher = new SteamSqexLauncher(Program.Steam, Program.UniqueIdCache!, Program.CommonSettings);
+            case License.Windows:
+                PlatformHelpers.IsMac = false;
+                Program.Launcher = new SqexLauncher(Program.UniqueIdCache!, Program.CommonSettings);
+                return;
+            case License.Mac:
+                PlatformHelpers.IsMac = true;
+                if (Program.Launcher is MacSqexLauncher)
+                    return;
+                Program.Launcher = new MacSqexLauncher(Program.UniqueIdCache!, Program.CommonSettings);
+                return;
+            case License.Steam:
+                PlatformHelpers.IsMac = false;
+                if (Program.Launcher is SteamSqexLauncher)
+                    return;
+                Program.Launcher = new SteamSqexLauncher(Program.Steam, Program.UniqueIdCache!, Program.CommonSettings);
+                return;
         }
     }
 
@@ -64,7 +75,7 @@ public class LaunchServices
         }
     }
 
-    private static async Task<LoginResult> TryLoginToGame(string username, string password, string otp, bool isSteam, LoginAction action)
+    private static async Task<LoginResult> TryLoginToGame(string username, string password, string otp, LoginAction action)
     {
         bool? gateStatus = null;
 
@@ -100,7 +111,7 @@ public class LaunchServices
             var enableUidCache = Program.Config.IsUidCacheEnabled ?? false;
             var gamePath = Program.Config.GamePath;
 
-            EnsureLauncherAffinity(isSteam);
+            EnsureLauncherAffinity((License)Program.Config.License);
             if (action == LoginAction.Repair)
                 return await Program.Launcher.Login(username, password, otp, false, gamePath, true, Program.Config.IsFt.GetValueOrDefault(false)).ConfigureAwait(false);
             else
@@ -255,7 +266,7 @@ public class LaunchServices
             try
             {
                 Log.Information("Waiting for Dalamud to be ready...", "This may take a little while. Please hold!");
-                dalamudOk = dalamudLauncher.HoldForUpdate(Program.Config.GamePath);
+                dalamudOk = dalamudLauncher.HoldForUpdate(Program.Config.GamePath) == DalamudLauncher.DalamudInstallState.Ok;
             }
             catch (DalamudRunnerException ex)
             {
@@ -274,7 +285,7 @@ public class LaunchServices
 
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
-            runner = new WindowsGameRunner(dalamudLauncher, dalamudOk);
+            runner = new WindowsGameRunner(dalamudLauncher, dalamudOk, Program.DalamudUpdater!.Runtime);
         }
         else if (Environment.OSVersion.Platform == PlatformID.Unix)
         {
@@ -337,7 +348,36 @@ public class LaunchServices
         }
 
         return process.ExitCode;
-    } 
+    }
+
+    public static async Task<string> RepairGame(LoginResult loginResult)
+    {
+        Log.Information("STARTING REPAIR");
+
+        using var verify = new PatchVerifier(CommonSettings.Instance, loginResult, 20, loginResult.OauthLogin.MaxExpansion);
+        verify.Start();
+        await verify.WaitForCompletion().ConfigureAwait(false);
+
+        switch (verify.State)
+        {
+            case PatchVerifier.VerifyState.Done:
+                return verify.NumBrokenFiles switch
+                {
+                    0 => Loc.Localize("GameRepairSuccess0", "All game files seem to be valid."),
+                    1 => Loc.Localize("GameRepairSuccess1", "XIVLauncher has successfully repaired 1 game file."),
+                    _ => string.Format(Loc.Localize("GameRepairSuccessPlural", "XIVLauncher has successfully repaired {0} game files.")),
+                };
+
+            case PatchVerifier.VerifyState.Error:
+                if (verify.LastException is NoVersionReferenceException)
+                    return Loc.Localize("NoVersionReferenceError", "The version of the game you are on cannot be repaired by XIVLauncher yet, as reference information is not yet available.\nPlease try again later.");
+                return Loc.Localize("GameRepairError", "An error occurred while repairing the game files.\nYou may have to reinstall the game.");
+
+            case PatchVerifier.VerifyState.Cancelled:
+                return "Cancelled"; //should not reach
+        }
+        return string.Empty;
+    }
 }
 
 

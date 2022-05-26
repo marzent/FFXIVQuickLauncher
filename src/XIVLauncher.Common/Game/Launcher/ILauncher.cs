@@ -26,4 +26,6 @@ public interface ILauncher
     public Task<string> GenPatchToken(string patchUrl, string uniqueId);
 
     public Task<byte[]> DownloadAsLauncher(string url, ClientLanguage language, string contentType = "");
+
+    public string GenerateUserAgent();
 }
