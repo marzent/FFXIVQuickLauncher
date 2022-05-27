@@ -16,6 +16,7 @@ using XIVLauncher.NativeAOT;
 using Newtonsoft.Json;
 using XIVLauncher.Common.Game;
 using XIVLauncher.Common.Patching;
+using System.ComponentModel;
 
 namespace NativeLibrary;
 
@@ -46,7 +47,7 @@ public class Program
 #if DEBUG
                      .MinimumLevel.Verbose()
 #else
-                     .MinimumLevel.Information()
+                     .MinimumLevel.Verbose()
 #endif
                      .CreateLogger();
 
@@ -93,7 +94,7 @@ public class Program
 
         UniqueIdCache = new CommonUniqueIdCache(storage.GetFile("uidCache.json"));
         Launcher = new SqexLauncher(UniqueIdCache, Program.CommonSettings);
-        LaunchServices.EnsureLauncherAffinity((License)Config!.License!);
+        LaunchServices.EnsureLauncherAffinity((XIVLauncher.NativeAOT.Configuration.License)Config!.License!);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "addEnviromentVariable")]
@@ -133,7 +134,7 @@ public class Program
 
             IsDx11 = isDx11,
             IsEncryptArgs = isEncryptArgs,
-            License = (License)license,
+            License = (XIVLauncher.NativeAOT.Configuration.License)license,
             IsFt = isFt,
 
             PatchPath = new DirectoryInfo(Marshal.PtrToStringAnsi(patchPath)!),
@@ -149,7 +150,7 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "fakeLogin")]
     public static void FakeLogin()
     {
-        LaunchServices.EnsureLauncherAffinity((License)Config!.License!);
+        LaunchServices.EnsureLauncherAffinity((XIVLauncher.NativeAOT.Configuration.License)Config!.License!);
         IGameRunner gameRunner;
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
             gameRunner = new WindowsGameRunner(null, false, Program.DalamudUpdater!.Runtime);
@@ -160,11 +161,11 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "tryLoginToGame")]
-    public static IntPtr TryLoginToGame(IntPtr username, IntPtr password, IntPtr otp)
+    public static IntPtr TryLoginToGame(IntPtr username, IntPtr password, IntPtr otp, bool repair)
     {
         try
         {
-            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringAnsi(username)!, Marshal.PtrToStringAnsi(password)!, Marshal.PtrToStringAnsi(otp)!).Result);
+            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringAnsi(username)!, Marshal.PtrToStringAnsi(password)!, Marshal.PtrToStringAnsi(otp)!, repair).Result);
         }
         catch (AggregateException ex)
         {
@@ -236,6 +237,21 @@ public class Program
         }
     }
 
+    [UnmanagedCallersOnly(EntryPoint = "queryRepairProgress")]
+    public static IntPtr QueryRepairProgress()
+    {
+        try
+        {
+            var progress = new RepairProgress(LaunchServices.CurrentPatchVerifier);
+            return Marshal.StringToHGlobalAnsi(JsonConvert.SerializeObject(progress));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Querying Repair Progress Info failed");
+            return Marshal.StringToHGlobalAnsi(JsonConvert.SerializeObject(new RepairProgress()));
+        }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "startGame")]
     public static IntPtr StartGame(IntPtr loginResultJSON)
     {
@@ -304,7 +320,14 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "addRegistryKey")]
     public static void AddRegistryKey(IntPtr key, IntPtr value, IntPtr data)
     {
-        CompatibilityTools!.AddRegistryKey(Marshal.PtrToStringAnsi(key)!, Marshal.PtrToStringAnsi(value)!, Marshal.PtrToStringAnsi(data)!);
+        try
+        {
+            CompatibilityTools!.AddRegistryKey(Marshal.PtrToStringAnsi(key)!, Marshal.PtrToStringAnsi(value)!, Marshal.PtrToStringAnsi(data)!);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occured adding the registry key");
+        } 
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getProcessIds")]

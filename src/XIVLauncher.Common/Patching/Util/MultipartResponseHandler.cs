@@ -101,9 +101,9 @@ namespace XIVLauncher.Common.Patching.Util
                         this.multipartBufferStream.Consume(null, 0, 2);
                     else
                     {
-                        using var buffer = ReusableByteBufferManager.GetBuffer();
+                        using var buffer = ReusableByteBufferManager.GetBuffer(i);
                         if (i > buffer.Buffer.Length)
-                            throw new IOException($"Multipart header line is too long ({i} bytes)");
+                            throw new IOException($"Multipart header line is too long ({i} bytes; buffer has {buffer.Buffer.Length} bytes)");
 
                         this.multipartBufferStream.Consume(buffer.Buffer, 0, i + 2);
                         this.multipartHeaderLines.Add(Encoding.UTF8.GetString(buffer.Buffer, 0, i));

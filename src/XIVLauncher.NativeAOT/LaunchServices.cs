@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using CheapLoc;
 using NativeLibrary;
 using Newtonsoft.Json;
 using Serilog;
@@ -19,6 +18,8 @@ namespace XIVLauncher.NativeAOT;
 
 public class LaunchServices
 {
+    public static PatchVerifier? CurrentPatchVerifier { get; private set; } = null;
+
     public enum LoginAction
     {
         Game,
@@ -28,9 +29,9 @@ public class LaunchServices
         Fake,
     }
 
-    public static async Task<string> TryLoginToGame(string username, string password, string otp)
+    public static async Task<string> TryLoginToGame(string username, string password, string otp, bool repair)
     {
-        var action = LoginAction.Game;
+        var action = repair ? LoginAction.Repair : LoginAction.Game;
 
         var result = await TryLoginToGame(username, password, otp, action).ConfigureAwait(false);
 
@@ -100,7 +101,7 @@ public class LaunchServices
 
         if (gateStatus == false)
         {
-            Log.Error(Loc.Localize("GateClosed", "FFXIV is currently under maintenance. Please try again later or see official sources for more information."));
+            Log.Error("FFXIV is currently under maintenance. Please try again later or see official sources for more information.");
 
             return null;
         }
@@ -272,8 +273,7 @@ public class LaunchServices
             {
                 Log.Error(ex, "Couldn't ensure Dalamud runner");
 
-                var runnerErrorMessage = Loc.Localize("DalamudRunnerError",
-                    "Could not launch Dalamud successfully. This might be caused by your antivirus.\nTo prevent this, please add an exception for the folder \"%AppData%\\XIVLauncher\\addons\".");
+                var runnerErrorMessage = "Could not launch Dalamud successfully. This might be caused by your antivirus.\nTo prevent this, please add an exception for the folder \"%AppData%\\XIVLauncher\\addons\".";
 
                 throw;
             }
@@ -354,7 +354,8 @@ public class LaunchServices
     {
         Log.Information("STARTING REPAIR");
 
-        using var verify = new PatchVerifier(CommonSettings.Instance, loginResult, 20, loginResult.OauthLogin.MaxExpansion);
+        using var verify = new PatchVerifier(CommonSettings.Instance, loginResult, 20, loginResult.OauthLogin.MaxExpansion, false);
+        CurrentPatchVerifier = verify;
         verify.Start();
         await verify.WaitForCompletion().ConfigureAwait(false);
 
@@ -363,15 +364,15 @@ public class LaunchServices
             case PatchVerifier.VerifyState.Done:
                 return verify.NumBrokenFiles switch
                 {
-                    0 => Loc.Localize("GameRepairSuccess0", "All game files seem to be valid."),
-                    1 => Loc.Localize("GameRepairSuccess1", "XIVLauncher has successfully repaired 1 game file."),
-                    _ => string.Format(Loc.Localize("GameRepairSuccessPlural", "XIVLauncher has successfully repaired {0} game files.")),
+                    0 => "All game files seem to be valid.",
+                    1 => "XIVLauncher has successfully repaired 1 game file.",
+                    _ => string.Format("XIVLauncher has successfully repaired {0} game files."),
                 };
 
             case PatchVerifier.VerifyState.Error:
                 if (verify.LastException is NoVersionReferenceException)
-                    return Loc.Localize("NoVersionReferenceError", "The version of the game you are on cannot be repaired by XIVLauncher yet, as reference information is not yet available.\nPlease try again later.");
-                return Loc.Localize("GameRepairError", "An error occurred while repairing the game files.\nYou may have to reinstall the game.");
+                    return "The version of the game you are on cannot be repaired by XIVLauncher yet, as reference information is not yet available.\nPlease try again later.";
+                return "An error occurred while repairing the game files.\nYou may have to reinstall the game.";
 
             case PatchVerifier.VerifyState.Cancelled:
                 return "Cancelled"; //should not reach

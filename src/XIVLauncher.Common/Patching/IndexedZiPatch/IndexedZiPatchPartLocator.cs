@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Serilog;
 using XIVLauncher.Common.Patching.Util;
 
 namespace XIVLauncher.Common.Patching.IndexedZiPatch
@@ -86,35 +87,26 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
         public bool IsUnavailable => SourceIndex == SOURCE_INDEX_UNAVAILABLE;
         public bool IsFromSourceFile => !IsAllZeros && !IsEmptyBlock && !IsUnavailable;
 
-        public unsafe void WriteTo(BinaryWriter writer)
+        public void WriteTo(BinaryWriter writer)
         {
-            int unitSize = Marshal.SizeOf(this);
-            using var buf = ReusableByteBufferManager.GetBuffer(unitSize);
-
-            fixed (byte* pBuf = buf.Buffer)
-            {
-                fixed (IndexedZiPatchPartLocator* pLocator = &this)
-                {
-                    Buffer.MemoryCopy(pLocator, pBuf, unitSize, unitSize);
-                }
-            }
-
-            writer.Write(buf.Buffer, 0, unitSize);
+            writer.Write(this.TargetOffsetUint);
+            writer.Write(this.SourceOffsetUint);
+            writer.Write(this.TargetSizeAndFlags);
+            writer.Write(this.Crc32OrPlaceholderEntryDataUnits);
+            writer.Write(this.SplitDecodedSourceFromUshort);
+            writer.Write(this.TargetIndexByte);
+            writer.Write(this.SourceIndexByte);
         }
 
-        public unsafe void ReadFrom(BinaryReader reader)
+        public void ReadFrom(BinaryReader reader)
         {
-            int unitSize = Marshal.SizeOf(this);
-            using var buf = ReusableByteBufferManager.GetBuffer(unitSize);
-            reader.Read(buf.Buffer, 0, unitSize);
-
-            fixed (byte* pBuf = buf.Buffer)
-            {
-                fixed (IndexedZiPatchPartLocator* pLocator = &this)
-                {
-                    Buffer.MemoryCopy(pBuf, pLocator, unitSize, unitSize);
-                }
-            }
+            this.TargetOffsetUint = reader.ReadUInt32();
+            this.SourceOffsetUint = reader.ReadUInt32();
+            this.TargetSizeAndFlags = reader.ReadUInt32();
+            this.Crc32OrPlaceholderEntryDataUnits = reader.ReadUInt32();
+            this.SplitDecodedSourceFromUshort = reader.ReadUInt16();
+            this.TargetIndexByte = reader.ReadByte();
+            this.SourceIndexByte = reader.ReadByte();
         }
 
         public int CompareTo(IndexedZiPatchPartLocator other)
@@ -137,7 +129,9 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
                 return VerifyDataResult.FailNotEnoughData;
 
             if (IsValidCrc32Value)
+            {
                 return Crc32.Calculate(buf, offset, length) == Crc32OrPlaceholderEntryDataUnits ? VerifyDataResult.Pass : VerifyDataResult.FailBadData;
+            }
 
             if (IsAllZeros)
                 return buf.Skip(offset).Take(length).All(x => x == 0) ? VerifyDataResult.Pass : VerifyDataResult.FailBadData;
@@ -283,7 +277,9 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
                 using var inflatedBuffer = ReusableByteBufferManager.GetBuffer(MaxSourceSize);
                 using (var stream = new DeflateStream(new MemoryStream(sourceSegment, sourceSegmentOffset, sourceSegmentLength - sourceSegmentOffset), CompressionMode.Decompress, true))
                     stream.Read(inflatedBuffer.Buffer, 0, inflatedBuffer.Buffer.Length);
-                if (verify && VerifyDataResult.Pass != Verify(inflatedBuffer.Buffer, (int)SplitDecodedSourceFrom, (int)TargetSize))
+                var verifyResult = Verify(inflatedBuffer.Buffer, (int)SplitDecodedSourceFrom, (int)TargetSize);
+                Log.Verbose($"Verify Result: {verifyResult}");
+                if (verify && VerifyDataResult.Pass != verifyResult)
                     throw new IOException("Verify failed on reconstruct (inflate)");
 
                 Array.Copy(inflatedBuffer.Buffer, SplitDecodedSourceFrom + relativeOffset, buffer, bufferOffset, bufferSize);
