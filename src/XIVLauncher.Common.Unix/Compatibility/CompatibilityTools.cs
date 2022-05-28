@@ -181,8 +181,8 @@ public class CompatibilityTools
             ldPreload = ldPreload.Equals("") ? "libgamemodeauto.so.0" : ldPreload + ":libgamemodeauto.so.0";
         }
 
-        wineEnviromentVariables.Add("DXVK_HUD", dxvkHud);
-        wineEnviromentVariables.Add("DXVK_ASYNC", dxvkAsyncOn);
+        //wineEnviromentVariables.Add("DXVK_HUD", dxvkHud);
+        //wineEnviromentVariables.Add("DXVK_ASYNC", dxvkAsyncOn);
         wineEnviromentVariables.Add("WINEESYNC", Settings.EsyncOn);
         wineEnviromentVariables.Add("WINEFSYNC", Settings.FsyncOn);
 

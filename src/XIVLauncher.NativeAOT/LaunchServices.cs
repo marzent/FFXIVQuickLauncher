@@ -365,8 +365,8 @@ public class LaunchServices
                 return verify.NumBrokenFiles switch
                 {
                     0 => "All game files seem to be valid.",
-                    1 => "XIVLauncher has successfully repaired 1 game file.",
-                    _ => string.Format("XIVLauncher has successfully repaired {0} game files."),
+                    1 => "XIV on Mac has successfully repaired 1 game file.",
+                    _ => string.Format("XIV on Mac has successfully repaired {0} game files.", verify.NumBrokenFiles),
                 };
 
             case PatchVerifier.VerifyState.Error:
