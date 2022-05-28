@@ -330,13 +330,13 @@ namespace XIVLauncher.Common.Game.Patch
                                         }
                                         catch (Exception e)
                                         {
-                                            Log.Error(e, "remote.Install");
+                                            Log.Error(e, "IndexedZiPatchIndexInstaller.Install");
                                             if (attemptIndex == REATTEMPT_COUNT - 1)
                                                 throw;
                                         }
                                     }
                                     if (!repaired)
-                                        throw new IOException("Failed to repair after 5 attempts");
+                                        throw new IOException($"Failed to repair after {REATTEMPT_COUNT} attempts");
                                     NumBrokenFiles += fileBroken.Where(x => x).Count();
                                     PatchSetIndex++;
                                 }

@@ -737,7 +737,7 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
                         this.installTaskConfigs[Math.Max(0, this.installTaskConfigs.Count - pendingTaskConfigs.Count - runningTasks.Count - 1)].SourceIndex,
                         this.installTaskConfigs.Select(x => x.ProgressValue).Sum(),
                         progressMax,
-                        this.installTaskConfigs.Where(x => x.State < InstallTaskState.Finishing).Select(x => x.State).Max()
+                        this.installTaskConfigs.Where(x => x.State < InstallTaskState.Finishing).Select(x => x.State).DefaultIfEmpty().Max()
                         );
 
                     if (progressReportTask == null || progressReportTask.IsCompleted)
