@@ -274,6 +274,7 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
             {
                 using var inflatedBuffer = ReusableByteBufferManager.GetBuffer(MaxSourceSize);
                 using (var stream = new DeflateStream(new MemoryStream(sourceSegment, sourceSegmentOffset, sourceSegmentLength - sourceSegmentOffset), CompressionMode.Decompress, 0, true))
+                    stream.Read(inflatedBuffer.Buffer, 0, inflatedBuffer.Buffer.Length);
                 if (verify && VerifyDataResult.Pass != Verify(inflatedBuffer.Buffer, (int)SplitDecodedSourceFrom, (int)TargetSize))
                     throw new IOException("Verify failed on reconstruct (inflate)");
 
