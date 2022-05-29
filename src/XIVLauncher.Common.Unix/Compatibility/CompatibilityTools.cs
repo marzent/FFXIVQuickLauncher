@@ -57,7 +57,7 @@ public class CompatibilityTools
         this.toolDirectory = new DirectoryInfo(Path.Combine(toolsFolder.FullName, "beta"));
         this.dxvkDirectory = new DirectoryInfo(Path.Combine(toolsFolder.FullName, "dxvk"));
 
-        this.logWriter = new StreamWriter(wineSettings.LogFile.FullName);
+        this.logWriter = new StreamWriter(wineSettings.LogFile.FullName, append: true);
 
         if (wineSettings.StartupType == WineStartupType.Managed)
         {
@@ -152,7 +152,7 @@ public class CompatibilityTools
     private Process RunInPrefix(ProcessStartInfo psi, string workingDirectory = "", IDictionary<string, string> environment = null, bool redirectOutput = false)
     {
         psi.RedirectStandardOutput = redirectOutput;
-        psi.RedirectStandardError = true;
+        psi.RedirectStandardError = false;// true;
         psi.UseShellExecute = false;
         psi.WorkingDirectory = workingDirectory;
 
@@ -233,7 +233,7 @@ public class CompatibilityTools
         });
 
         helperProcess.Start();
-        helperProcess.BeginErrorReadLine();
+        //helperProcess.BeginErrorReadLine();
         return helperProcess;
     }
 

@@ -11,6 +11,7 @@ public class RepairProgress
     public string CurrentFile { get; private set; } = "";
     public long Total { get; private set; } = 100;
     public long Progress { get; private set; } = 0;
+    public long Speed { get; private set; } = 0;
 
     public RepairProgress()
     {
@@ -28,6 +29,7 @@ public class RepairProgress
                 CurrentFile = $"{verify.CurrentFile}";
                 Total = verify.Total;
                 Progress = verify.Progress;
+                Speed = verify.Speed;
                 break;
 
             case PatchVerifier.VerifyState.VerifyAndRepair:
@@ -40,10 +42,11 @@ public class RepairProgress
                 CurrentFile = $"{verify.CurrentFile}";
                 Total = verify.Total;
                 Progress = verify.Progress;
+                Speed = verify.Speed;
                 break;
 
             default:
-                break;
+                return;
         }
     }
 }
