@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Ionic.Zlib;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,7 +51,7 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
                     Log.Information("Calculating CRC32 for files resulted from patch file {0}...", patchFilePath);
                     await patchIndex.CalculateCrc32(sources, cancellationToken);
 
-                    using (var writer = new BinaryWriter(new DeflateStream(new FileStream(patchFilePath + ".index.tmp", FileMode.Create),  CompressionMode.Compress, CompressionLevel.BestCompression)))
+                    using (var writer = new BinaryWriter(new DeflateStream(new FileStream(patchFilePath + ".index.tmp", FileMode.Create),  CompressionLevel.Optimal)))
                         patchIndex.WriteTo(writer);
 
                     File.Move(patchFilePath + ".index.tmp", patchFilePath + ".index");

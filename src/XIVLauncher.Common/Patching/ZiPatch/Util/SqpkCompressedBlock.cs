@@ -1,5 +1,5 @@
 ﻿using System.IO;
-using Ionic.Zlib;
+using System.IO.Compression;
 
 namespace XIVLauncher.Common.Patching.ZiPatch.Util
 {

@@ -1,11 +1,10 @@
-﻿using Ionic.Zlib;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.InteropServices;
 using XIVLauncher.Common.Patching.Util;
-
 
 
 namespace XIVLauncher.Common.Patching.IndexedZiPatch
@@ -277,10 +276,9 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
             if (IsDeflatedBlockData)
             {
                 using var inflatedBuffer = ReusableByteBufferManager.GetBuffer(MaxSourceSize);
-                using (var stream = new DeflateStream(new MemoryStream(sourceSegment, sourceSegmentOffset, sourceSegmentLength - sourceSegmentOffset), CompressionMode.Decompress, 0, true))
-                    stream.Read(inflatedBuffer.Buffer, 0, inflatedBuffer.Buffer.Length);
-                var verifyResult = Verify(inflatedBuffer.Buffer, (int)SplitDecodedSourceFrom, (int)TargetSize);
-                if (verify && VerifyDataResult.Pass != verifyResult)
+                using (var stream = new DeflateStream(new MemoryStream(sourceSegment, sourceSegmentOffset, sourceSegmentLength - sourceSegmentOffset), CompressionMode.Decompress, true))
+                    stream.FullRead(inflatedBuffer.Buffer, 0, inflatedBuffer.Buffer.Length);
+                if (verify && VerifyDataResult.Pass != Verify(inflatedBuffer.Buffer, (int)SplitDecodedSourceFrom, (int)TargetSize))
                     throw new IOException("Verify failed on reconstruct (inflate)");
 
                 Array.Copy(inflatedBuffer.Buffer, SplitDecodedSourceFrom + relativeOffset, buffer, bufferOffset, bufferSize);
