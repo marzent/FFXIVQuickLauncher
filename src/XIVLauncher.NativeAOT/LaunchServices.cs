@@ -96,14 +96,14 @@ public class LaunchServices
         {
             Log.Error("Login servers could not be reached or maintenance is in progress. This might be a problem with your connection.");
 
-            return null;
+            throw new Exception("Login servers could not be reached or maintenance is in progress. This might be a problem with your connection.");
         }
 
         if (gateStatus == false)
         {
             Log.Error("FFXIV is currently under maintenance. Please try again later or see official sources for more information.");
 
-            return null;
+            throw new Exception("FFXIV is currently under maintenance. Please try again later or see official sources for more information.");
         }
 #endif
 
