@@ -285,6 +285,6 @@ public class CompatibilityTools
         };
         psi.EnvironmentVariables.Add("WINEPREFIX", Settings.Prefix.FullName);
 
-        Process.Start(psi);
+        Process.Start(psi).WaitForExit();
     }
 }
