@@ -47,7 +47,7 @@ public class Program
 #if DEBUG
                      .MinimumLevel.Verbose()
 #else
-                     .MinimumLevel.Verbose()
+                     .MinimumLevel.Verbose() //fix this 
 #endif
                      .CreateLogger();
 
@@ -210,6 +210,22 @@ public class Program
         {
             Log.Error(ex, "Patch installation failed");
             return Marshal.StringToHGlobalAnsi(ex.Message);
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "checkPatchValidity")]
+    public static bool CheckPatchValidity(IntPtr path, long patchLength, long hashBlockSize, IntPtr hashType, IntPtr hashes)
+    {
+        try
+        {
+            var pathInfo = new FileInfo(Marshal.PtrToStringAnsi(path)!);
+            var splitHashes = Marshal.PtrToStringAnsi(hashes)!.Split(',');
+            return LaunchServices.CheckPatchValidity(pathInfo, patchLength, hashBlockSize, Marshal.PtrToStringAnsi(hashType)!, splitHashes);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Patch verification failed");
+            return false;
         }
     }
 

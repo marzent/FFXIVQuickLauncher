@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using NativeLibrary;
 using Newtonsoft.Json;
 using Serilog;
@@ -123,6 +125,57 @@ public class LaunchServices
             Log.Error(ex, "Could not login to game");
             throw;
         }
+    }
+
+    public static bool CheckPatchValidity(FileInfo path, long patchLength, long hashBlockSize, string hashType, string[] hashes)
+    {
+        if (hashType != "sha1")
+        {
+            Log.Error("??? Unknown HashType: {0} for {1}", hashType, path.FullName);
+            return true;
+        }
+
+        var stream = path.OpenRead();
+
+        if (stream.Length != patchLength)
+        {
+            Log.Error("Bad length for patch {0}: {1} instead of {2}", path.FullName, stream.Length, patchLength);
+            return false;
+        }
+
+        var parts = (int)Math.Ceiling((double)patchLength / hashBlockSize);
+        var block = new byte[hashBlockSize];
+
+        for (var i = 0; i < parts; i++)
+        {
+            var read = stream.Read(block, 0, (int)hashBlockSize);
+
+            if (read < hashBlockSize)
+            {
+                var trimmedBlock = new byte[read];
+                Array.Copy(block, 0, trimmedBlock, 0, read);
+                block = trimmedBlock;
+            }
+
+            using var sha1 = new SHA1Managed();
+
+            var hash = sha1.ComputeHash(block);
+            var sb = new StringBuilder(hash.Length * 2);
+
+            foreach (var b in hash)
+            {
+                sb.Append(b.ToString("x2"));
+            }
+
+            if (sb.ToString() == hashes[i])
+                continue;
+
+            stream.Close();
+            return false;
+        }
+
+        stream.Close();
+        return true;
     }
 
     //private static async Task<bool> TryProcessLoginResult(LoginResult loginResult, bool isSteam, LoginAction action)
