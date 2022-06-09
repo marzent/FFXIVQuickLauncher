@@ -38,7 +38,7 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "initXL")]
     public static void Init(IntPtr appName, IntPtr storagePath)
     {
-        storage = new Storage(Marshal.PtrToStringAnsi(appName)!, Marshal.PtrToStringAnsi(storagePath)!);
+        storage = new Storage(Marshal.PtrToStringUTF8(appName)!, Marshal.PtrToStringUTF8(storagePath)!);
 
         Log.Logger = new LoggerConfiguration()
                      .WriteTo.Async(a =>
@@ -52,7 +52,7 @@ public class Program
                      .CreateLogger();
 
         Log.Information("========================================================");
-        Log.Information($"Starting a session({Marshal.PtrToStringAnsi(appName)!})");
+        Log.Information($"Starting a session({Marshal.PtrToStringUTF8(appName)!})");
 
         try
         {
@@ -100,7 +100,7 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "addEnviromentVariable")]
     public static void AddEnviromentVariable(IntPtr key, IntPtr value)
     {
-        var kvp = new KeyValuePair<string, string>(Marshal.PtrToStringAnsi(key)!, Marshal.PtrToStringAnsi(value)!);
+        var kvp = new KeyValuePair<string, string>(Marshal.PtrToStringUTF8(key)!, Marshal.PtrToStringUTF8(value)!);
         Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
     }
 
@@ -109,7 +109,7 @@ public class Program
     {
         var wineLogFile = new FileInfo(Path.Combine(storage!.GetFolder("logs").FullName, "wine.log"));
         var winePrefix = storage.GetFolder("wineprefix");
-        var wineSettings = new WineSettings(WineStartupType.Custom, Marshal.PtrToStringAnsi(winePath), Marshal.PtrToStringAnsi(wineDebugVars), wineLogFile, winePrefix, esync, false);
+        var wineSettings = new WineSettings(WineStartupType.Custom, Marshal.PtrToStringUTF8(winePath), Marshal.PtrToStringUTF8(wineDebugVars), wineLogFile, winePrefix, esync, false);
         var toolsFolder = storage.GetFolder("compatibilitytool");
         CompatibilityTools = new CompatibilityTools(wineSettings, DxvkHudType.None, false, true, toolsFolder);
     }
@@ -126,10 +126,10 @@ public class Program
     {
         Config = new LauncherConfig
         {
-            AcceptLanguage = Marshal.PtrToStringAnsi(acceptLanguage),
+            AcceptLanguage = Marshal.PtrToStringUTF8(acceptLanguage),
 
-            GamePath = new DirectoryInfo(Marshal.PtrToStringAnsi(gamePath)!),
-            GameConfigPath = new DirectoryInfo(Marshal.PtrToStringAnsi(gameConfigPath)!),
+            GamePath = new DirectoryInfo(Marshal.PtrToStringUTF8(gamePath)!),
+            GameConfigPath = new DirectoryInfo(Marshal.PtrToStringUTF8(gameConfigPath)!),
             ClientLanguage = (ClientLanguage)clientLanguage,
 
             IsDx11 = isDx11,
@@ -137,7 +137,7 @@ public class Program
             License = (XIVLauncher.NativeAOT.Configuration.License)license,
             IsFt = isFt,
 
-            PatchPath = new DirectoryInfo(Marshal.PtrToStringAnsi(patchPath)!),
+            PatchPath = new DirectoryInfo(Marshal.PtrToStringUTF8(patchPath)!),
             PatchAcquisitionMethod = (AcquisitionMethod)patchAcquisitionMethod,
             PatchSpeedLimit = patchSpeedLimit,
 
@@ -165,7 +165,7 @@ public class Program
     {
         try
         {
-            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringAnsi(username)!, Marshal.PtrToStringAnsi(password)!, Marshal.PtrToStringAnsi(otp)!, repair).Result);
+            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringUTF8(username)!, Marshal.PtrToStringUTF8(password)!, Marshal.PtrToStringUTF8(otp)!, repair).Result);
         }
         catch (AggregateException ex)
         {
@@ -202,7 +202,7 @@ public class Program
     {
         try
         {
-            RemotePatchInstaller.InstallPatch(Marshal.PtrToStringAnsi(patch)!, Marshal.PtrToStringAnsi(repo)!);
+            RemotePatchInstaller.InstallPatch(Marshal.PtrToStringUTF8(patch)!, Marshal.PtrToStringUTF8(repo)!);
             Log.Information("OK");
             return Marshal.StringToHGlobalAnsi("OK");
         }
@@ -218,9 +218,9 @@ public class Program
     {
         try
         {
-            var pathInfo = new FileInfo(Marshal.PtrToStringAnsi(path)!);
-            var splitHashes = Marshal.PtrToStringAnsi(hashes)!.Split(',');
-            return LaunchServices.CheckPatchValidity(pathInfo, patchLength, hashBlockSize, Marshal.PtrToStringAnsi(hashType)!, splitHashes);
+            var pathInfo = new FileInfo(Marshal.PtrToStringUTF8(path)!);
+            var splitHashes = Marshal.PtrToStringUTF8(hashes)!.Split(',');
+            return LaunchServices.CheckPatchValidity(pathInfo, patchLength, hashBlockSize, Marshal.PtrToStringUTF8(hashType)!, splitHashes);
         }
         catch (Exception ex)
         {
@@ -234,7 +234,7 @@ public class Program
     {
         try
         {
-            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringAnsi(loginResultJSON)!);
+            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJSON)!);
             return Marshal.StringToHGlobalAnsi(LaunchServices.RepairGame(loginResult).Result);
         }
         catch (AggregateException ex)
@@ -273,7 +273,7 @@ public class Program
     {
         try
         {
-            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringAnsi(loginResultJSON)!);
+            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJSON)!);
             var process = LaunchServices.StartGameAndAddon(loginResult).Result;
             var ret = new DalamudConsoleOutput
             {
@@ -318,19 +318,19 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "writeLogLine")]
     public static void WriteLogLine(byte logLevel, IntPtr message)
     {
-        Log.Write((Serilog.Events.LogEventLevel)logLevel, Marshal.PtrToStringAnsi(message)!);
+        Log.Write((Serilog.Events.LogEventLevel)logLevel, Marshal.PtrToStringUTF8(message)!);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "runInPrefix")]
     public static void RunInPrefix(IntPtr command)
     {
-        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringAnsi(command)!);
+        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringUTF8(command)!);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "runInPrefixBlocking")]
     public static void RunInPrefixBlocking(IntPtr command)
     {
-        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringAnsi(command)!).WaitForExit();
+        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringUTF8(command)!).WaitForExit();
     }
 
     [UnmanagedCallersOnly(EntryPoint = "addRegistryKey")]
@@ -338,7 +338,7 @@ public class Program
     {
         try
         {
-            CompatibilityTools!.AddRegistryKey(Marshal.PtrToStringAnsi(key)!, Marshal.PtrToStringAnsi(value)!, Marshal.PtrToStringAnsi(data)!);
+            CompatibilityTools!.AddRegistryKey(Marshal.PtrToStringUTF8(key)!, Marshal.PtrToStringUTF8(value)!, Marshal.PtrToStringUTF8(data)!);
         }
         catch (Exception ex)
         {
@@ -349,7 +349,7 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "getProcessIds")]
     public static IntPtr GetProcessIds(IntPtr executableName)
     {
-        var pids = CompatibilityTools!.GetProcessIds(Marshal.PtrToStringAnsi(executableName)!);
+        var pids = CompatibilityTools!.GetProcessIds(Marshal.PtrToStringUTF8(executableName)!);
         return Marshal.StringToHGlobalAnsi(string.Join(" ", pids));
     }
 
