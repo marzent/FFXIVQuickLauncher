@@ -278,10 +278,8 @@ public class LaunchServices
     //    }
     //}
 
-    public static async Task<Process> StartGameAndAddon(LoginResult loginResult)
+    public static async Task<DalamudLauncher.DalamudInstallState> GetDalamudInstallState()
     {
-        var dalamudOk = false;
-
         IDalamudRunner dalamudRunner;
         IDalamudCompatibilityCheck dalamudCompatCheck;
 
@@ -315,22 +313,39 @@ public class LaunchServices
             Log.Error(ex, "Architecture not supported");
         }
 
-        if (true)
+        try
         {
-            try
-            {
-                Log.Information("Waiting for Dalamud to be ready...", "This may take a little while. Please hold!");
-                dalamudOk = dalamudLauncher.HoldForUpdate(Program.Config.GamePath) == DalamudLauncher.DalamudInstallState.Ok;
-            }
-            catch (DalamudRunnerException ex)
-            {
-                Log.Error(ex, "Couldn't ensure Dalamud runner");
-
-                var runnerErrorMessage = "Could not launch Dalamud successfully. This might be caused by your antivirus.\nTo prevent this, please add an exception for the folder \"%AppData%\\XIVLauncher\\addons\".";
-
-                throw;
-            }
+            Log.Information("Waiting for Dalamud to be ready...", "This may take a little while. Please hold!");
+            return dalamudLauncher.HoldForUpdate(Program.Config.GamePath);
         }
+        catch (DalamudRunnerException ex)
+        {
+            Log.Error(ex, "Couldn't ensure Dalamud runner");
+
+            var runnerErrorMessage = "Could not launch Dalamud successfully. This might be caused by your antivirus.\nTo prevent this, please add an exception for the folder \"%AppData%\\XIVLauncher\\addons\".";
+
+            throw;
+        }
+    }
+
+    public static Process StartGameAndAddon(LoginResult loginResult, bool dalamudOk)
+    {
+        IDalamudRunner dalamudRunner;
+
+        switch (Environment.OSVersion.Platform)
+        {
+            case PlatformID.Win32NT:
+                dalamudRunner = new WindowsDalamudRunner();
+                break;
+            case PlatformID.Unix:
+                dalamudRunner = new UnixDalamudRunner(Program.CompatibilityTools, Program.DotnetRuntime);
+                break;
+            default:
+                throw new NotImplementedException();
+        }
+
+        var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
+            Program.Config.GamePath, Program.storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay);
 
         IGameRunner runner;
 
@@ -370,10 +385,7 @@ public class LaunchServices
             DpiAwareness.Unaware);
 
         if (launchedProcess == null)
-        {
             Log.Information("GameProcess was null...");
-            return null;
-        }
 
         return launchedProcess!;
     }

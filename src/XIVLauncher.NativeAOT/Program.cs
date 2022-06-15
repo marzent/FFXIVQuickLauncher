@@ -16,7 +16,8 @@ using XIVLauncher.NativeAOT;
 using Newtonsoft.Json;
 using XIVLauncher.Common.Game;
 using XIVLauncher.Common.Patching;
-using System.ComponentModel;
+using Serilog.Events;
+using MarshalUTF8Extensions;
 
 namespace NativeLibrary;
 
@@ -36,19 +37,16 @@ public class Program
     public const uint STEAM_APP_ID_FT = 312060;
 
     [UnmanagedCallersOnly(EntryPoint = "initXL")]
-    public static void Init(IntPtr appName, IntPtr storagePath)
+    public static void Init(nint appName, nint storagePath, bool VerboseLogging)
     {
         storage = new Storage(Marshal.PtrToStringUTF8(appName)!, Marshal.PtrToStringUTF8(storagePath)!);
 
+        var logLevel = VerboseLogging ? LogEventLevel.Verbose : LogEventLevel.Information;
         Log.Logger = new LoggerConfiguration()
                      .WriteTo.Async(a =>
                          a.File(Path.Combine(storage.GetFolder("logs").FullName, "launcher.log")))
                      .WriteTo.Console()
-#if DEBUG
-                     .MinimumLevel.Verbose()
-#else
-                     .MinimumLevel.Verbose() //fix this 
-#endif
+                     .MinimumLevel.Is(logLevel)
                      .CreateLogger();
 
         Log.Information("========================================================");
@@ -98,14 +96,14 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "addEnviromentVariable")]
-    public static void AddEnviromentVariable(IntPtr key, IntPtr value)
+    public static void AddEnviromentVariable(nint key, nint value)
     {
         var kvp = new KeyValuePair<string, string>(Marshal.PtrToStringUTF8(key)!, Marshal.PtrToStringUTF8(value)!);
         Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "createCompatToolsInstance")]
-    public static void CreateCompatToolsInstance(IntPtr winePath, IntPtr wineDebugVars, bool esync)
+    public static void CreateCompatToolsInstance(nint winePath, nint wineDebugVars, bool esync)
     {
         var wineLogFile = new FileInfo(Path.Combine(storage!.GetFolder("logs").FullName, "wine.log"));
         var winePrefix = storage.GetFolder("wineprefix");
@@ -115,14 +113,14 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "generateAcceptLanguage")]
-    public static IntPtr GenerateAcceptLanguage(int seed)
+    public static nint GenerateAcceptLanguage(int seed)
     {
         // Needs to be freed by the caller
-        return Marshal.StringToHGlobalAnsi(ApiHelpers.GenerateAcceptLanguage(seed));
+        return MarshalUTF8.StringToHGlobal(ApiHelpers.GenerateAcceptLanguage(seed));
     }
 
     [UnmanagedCallersOnly(EntryPoint = "loadConfig")]
-    public static void LoadConfig(IntPtr acceptLanguage, IntPtr gamePath, IntPtr gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, byte license, IntPtr patchPath, byte patchAcquisitionMethod, Int64 patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay)
+    public static void LoadConfig(nint acceptLanguage, nint gamePath, nint gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, byte license, nint patchPath, byte patchAcquisitionMethod, long patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay)
     {
         Config = new LauncherConfig
         {
@@ -161,11 +159,11 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "tryLoginToGame")]
-    public static IntPtr TryLoginToGame(IntPtr username, IntPtr password, IntPtr otp, bool repair)
+    public static nint TryLoginToGame(nint username, nint password, nint otp, bool repair)
     {
         try
         {
-            return Marshal.StringToHGlobalAnsi(LaunchServices.TryLoginToGame(Marshal.PtrToStringUTF8(username)!, Marshal.PtrToStringUTF8(password)!, Marshal.PtrToStringUTF8(otp)!, repair).Result);
+            return MarshalUTF8.StringToHGlobal(LaunchServices.TryLoginToGame(Marshal.PtrToStringUTF8(username)!, Marshal.PtrToStringUTF8(password)!, Marshal.PtrToStringUTF8(otp)!, repair).Result);
         }
         catch (AggregateException ex)
         {
@@ -175,46 +173,46 @@ public class Program
                 Log.Error(iex, "An error during login occured");
                 lastException = iex.Message;
             }
-            return Marshal.StringToHGlobalAnsi(lastException);
+            return MarshalUTF8.StringToHGlobal(lastException);
         }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getUserAgent")]
-    public static IntPtr GetUserAgent()
+    public static nint GetUserAgent()
     {
-        return Marshal.StringToHGlobalAnsi(Launcher!.GenerateUserAgent());
+        return MarshalUTF8.StringToHGlobal(Launcher!.GenerateUserAgent());
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getPatcherUserAgent")]
-    public static IntPtr GetPatcherUserAgent()
+    public static nint GetPatcherUserAgent()
     {
-        return Marshal.StringToHGlobalAnsi(Constants.PatcherUserAgent);
+        return MarshalUTF8.StringToHGlobal(Constants.PatcherUserAgent);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getBootPatches")]
-    public static IntPtr GetBootPatches()
+    public static nint GetBootPatches()
     {
-        return Marshal.StringToHGlobalAnsi(LaunchServices.GetBootPatches().Result);
+        return MarshalUTF8.StringToHGlobal(LaunchServices.GetBootPatches().Result);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "installPatch")]
-    public static IntPtr InstallPatch(IntPtr patch, IntPtr repo)
+    public static nint InstallPatch(nint patch, nint repo)
     {
         try
         {
             RemotePatchInstaller.InstallPatch(Marshal.PtrToStringUTF8(patch)!, Marshal.PtrToStringUTF8(repo)!);
             Log.Information("OK");
-            return Marshal.StringToHGlobalAnsi("OK");
+            return MarshalUTF8.StringToHGlobal("OK");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Patch installation failed");
-            return Marshal.StringToHGlobalAnsi(ex.Message);
+            return MarshalUTF8.StringToHGlobal(ex.Message);
         }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "checkPatchValidity")]
-    public static bool CheckPatchValidity(IntPtr path, long patchLength, long hashBlockSize, IntPtr hashType, IntPtr hashes)
+    public static bool CheckPatchValidity(nint path, long patchLength, long hashBlockSize, nint hashType, nint hashes)
     {
         try
         {
@@ -230,12 +228,12 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "repairGame")]
-    public static IntPtr RepairGame(IntPtr loginResultJSON)
+    public static nint RepairGame(nint loginResultJSON)
     {
         try
         {
             var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJSON)!);
-            return Marshal.StringToHGlobalAnsi(LaunchServices.RepairGame(loginResult).Result);
+            return MarshalUTF8.StringToHGlobal(LaunchServices.RepairGame(loginResult).Result);
         }
         catch (AggregateException ex)
         {
@@ -245,42 +243,56 @@ public class Program
                 Log.Error(iex, "An error during game repair has occured");
                 lastException = iex.Message;
             }
-            return Marshal.StringToHGlobalAnsi(lastException);
+            return MarshalUTF8.StringToHGlobal(lastException);
         }
         catch (Exception ex)
         {
-            return Marshal.StringToHGlobalAnsi(ex.Message);
+            return MarshalUTF8.StringToHGlobal(ex.Message);
         }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "queryRepairProgress")]
-    public static IntPtr QueryRepairProgress()
+    public static nint QueryRepairProgress()
     {
         try
         {
             var progress = new RepairProgress(LaunchServices.CurrentPatchVerifier);
-            return Marshal.StringToHGlobalAnsi(JsonConvert.SerializeObject(progress));
+            return MarshalUTF8.StringToHGlobal(JsonConvert.SerializeObject(progress));
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Querying Repair Progress Info failed");
-            return Marshal.StringToHGlobalAnsi(JsonConvert.SerializeObject(new RepairProgress()));
+            return MarshalUTF8.StringToHGlobal(JsonConvert.SerializeObject(new RepairProgress()));
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "getDalamudInstallState")]
+    public static bool GetDalamudInstallState()
+    {
+        try
+        {
+            return LaunchServices.GetDalamudInstallState().Result == DalamudLauncher.DalamudInstallState.Ok;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error getting the dalamud state has occured");
+            return false;
         }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "startGame")]
-    public static IntPtr StartGame(IntPtr loginResultJSON)
+    public static nint StartGame(nint loginResultJSON, bool dalamudOk)
     {
         try
         {
             var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJSON)!);
-            var process = LaunchServices.StartGameAndAddon(loginResult).Result;
+            var process = LaunchServices.StartGameAndAddon(loginResult, dalamudOk);
             var ret = new DalamudConsoleOutput
             {
                 Handle = (long)process.Handle,
                 Pid = process.Id
             };
-            return Marshal.StringToHGlobalAnsi(JsonConvert.SerializeObject(ret));
+            return MarshalUTF8.StringToHGlobal(JsonConvert.SerializeObject(ret));
         }
         catch (AggregateException ex)
         {
@@ -290,11 +302,11 @@ public class Program
                 Log.Error(iex, "An error during game startup has occured");
                 lastException = iex.Message;
             }
-            return Marshal.StringToHGlobalAnsi(lastException);
+            return MarshalUTF8.StringToHGlobal(lastException);
         }
         catch (Exception ex)
         {
-            return Marshal.StringToHGlobalAnsi(ex.Message);
+            return MarshalUTF8.StringToHGlobal(ex.Message);
         }
     }
 
@@ -316,25 +328,25 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "writeLogLine")]
-    public static void WriteLogLine(byte logLevel, IntPtr message)
+    public static void WriteLogLine(byte logLevel, nint message)
     {
         Log.Write((Serilog.Events.LogEventLevel)logLevel, Marshal.PtrToStringUTF8(message)!);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "runInPrefix")]
-    public static void RunInPrefix(IntPtr command)
+    public static void RunInPrefix(nint command)
     {
         CompatibilityTools!.RunInPrefix(Marshal.PtrToStringUTF8(command)!);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "runInPrefixBlocking")]
-    public static void RunInPrefixBlocking(IntPtr command)
+    public static void RunInPrefixBlocking(nint command)
     {
         CompatibilityTools!.RunInPrefix(Marshal.PtrToStringUTF8(command)!).WaitForExit();
     }
 
     [UnmanagedCallersOnly(EntryPoint = "addRegistryKey")]
-    public static void AddRegistryKey(IntPtr key, IntPtr value, IntPtr data)
+    public static void AddRegistryKey(nint key, nint value, nint data)
     {
         try
         {
@@ -347,10 +359,10 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getProcessIds")]
-    public static IntPtr GetProcessIds(IntPtr executableName)
+    public static nint GetProcessIds(nint executableName)
     {
         var pids = CompatibilityTools!.GetProcessIds(Marshal.PtrToStringUTF8(executableName)!);
-        return Marshal.StringToHGlobalAnsi(string.Join(" ", pids));
+        return MarshalUTF8.StringToHGlobal(string.Join(" ", pids));
     }
 
     [UnmanagedCallersOnly(EntryPoint = "killWine")]
