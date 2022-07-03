@@ -1,5 +1,4 @@
-﻿using Serilog;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,8 +10,6 @@ namespace XIVLauncher.Common.Patching.IndexedZiPatch
 {
     public class IndexedZiPatchIndexLocalInstaller : IIndexedZiPatchIndexInstaller
     {
-        private int cancellationTokenCounter = 1;
-        private long lastProgressUpdateCounter = 0;
         private bool isDisposed = false;
         private IndexedZiPatchInstaller? instance;
 

@@ -1,5 +1,4 @@
-﻿using System;
-using XIVLauncher.Common.PlatformAbstractions;
+﻿using XIVLauncher.Common.PlatformAbstractions;
 
 namespace XIVLauncher.NativeAOT;
 

@@ -236,6 +236,7 @@ public class CompatibilityTools
         helperProcess.Start();
         if (writeLog)
             helperProcess.BeginErrorReadLine();
+
         return helperProcess;
     }
 

@@ -84,7 +84,7 @@ public class Program
         }
 
         var dalamudLoadInfo = new DalamudOverlayInfoProxy();
-        DalamudUpdater = new DalamudUpdater(Storage.GetFolder("dalamud"), Storage.GetFolder("runtime"), Storage.GetFolder("dalamudAssets"), Storage.Root, null)
+        DalamudUpdater = new DalamudUpdater(Storage.GetFolder("dalamud"), Storage.GetFolder("runtime"), Storage.GetFolder("dalamudAssets"), Storage.Root, null, "Control")
         {
             Overlay = dalamudLoadInfo
         };
@@ -333,15 +333,14 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "runInPrefix")]
-    public static void RunInPrefix(nint command)
+    public static void RunInPrefix(nint command, bool blocking, bool wineD3D)
     {
-        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringUTF8(command)!);
-    }
-
-    [UnmanagedCallersOnly(EntryPoint = "runInPrefixBlocking")]
-    public static void RunInPrefixBlocking(nint command)
-    {
-        CompatibilityTools!.RunInPrefix(Marshal.PtrToStringUTF8(command)!).WaitForExit();
+        var commandStr = Marshal.PtrToStringUTF8(command)!;
+        var process = CompatibilityTools!.RunInPrefix(commandStr);
+        if (blocking)
+        {
+            process.WaitForExit();
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "addRegistryKey")]

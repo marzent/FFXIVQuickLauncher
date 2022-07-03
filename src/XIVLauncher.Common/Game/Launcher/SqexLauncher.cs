@@ -220,6 +220,61 @@ public class SqexLauncher : ILauncher
     }
 
     /// <summary>
+    /// Check ver & bck files for sanity.
+    /// </summary>
+    /// <param name="gamePath"></param>
+    /// <param name="exLevel"></param>
+    private static void EnsureVersionSanity(DirectoryInfo gamePath, int exLevel)
+    {
+        var failed = IsBadVersionSanity(gamePath, Repository.Ffxiv);
+        failed |= IsBadVersionSanity(gamePath, Repository.Ffxiv, true);
+
+        if (exLevel >= 1)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex1);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex1, true);
+        }
+
+        if (exLevel >= 2)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex2);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex2, true);
+        }
+
+        if (exLevel >= 3)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex3);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex3, true);
+        }
+
+        if (exLevel >= 4)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex4);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex4, true);
+        }
+
+        if (failed)
+            throw new InvalidVersionFilesException();
+    }
+
+    private static bool IsBadVersionSanity(DirectoryInfo gamePath, Repository repo, bool isBck = false)
+    {
+        var text = repo.GetVer(gamePath, isBck);
+
+        var nullOrWhitespace = string.IsNullOrWhiteSpace(text);
+        var containsNewline = text.Contains("\n");
+        var allNullBytes = Encoding.UTF8.GetBytes(text).All(x => x == 0x00);
+
+        if (nullOrWhitespace || containsNewline || allNullBytes)
+        {
+            Log.Error("Sanity check failed for {repo}/{isBck}: {NullOrWhitespace}, {ContainsNewline}, {AllNullBytes}", repo, isBck, nullOrWhitespace, containsNewline, allNullBytes);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Calculate the hash that is sent to patch-gamever for version verification/tamper protection.
     /// This same hash is also sent in lobby, but for ffxiv.exe and ffxiv_dx11.exe.
     /// </summary>
@@ -257,7 +312,15 @@ public class SqexLauncher : ILauncher
 
         Log.Verbose("Boot patching is needed... List:\n{PatchList}", resp);
 
-        return PatchListParser.Parse(text);
+        try
+        {
+            return PatchListParser.Parse(text);
+        }
+        catch (PatchListParseException ex)
+        {
+            Log.Information("Patch list:\n{PatchList}", ex.List);
+            throw;
+        }
     }
 
     public async Task<PatchListEntry[]> CheckGameVersion(DirectoryInfo gamePath, bool forceBaseVersion = false)
@@ -282,8 +345,11 @@ public class SqexLauncher : ILauncher
         if (resp.StatusCode == HttpStatusCode.Conflict)
             throw new VersionCheckLoginException(LoginState.NeedsPatchBoot);
 
+        if (resp.StatusCode == HttpStatusCode.Gone)
+            throw new InvalidResponseException("The server indicated that the version requested is no longer being serviced or not present.", text);
+
         if (!resp.Headers.TryGetValues("X-Patch-Unique-Id", out var uidVals))
-            throw new InvalidResponseException("Could not get X-Patch-Unique-Id.", text);
+            throw new InvalidResponseException($"Could not get X-Patch-Unique-Id. ({resp.StatusCode})", text);
 
         this.uniqueId = uidVals.First();
 

@@ -1,7 +1,4 @@
-﻿using XIVLauncher.Common;
-using XIVLauncher.Common.Game.Patch;
-using XIVLauncher.Common.Game.Patch.Acquisition;
-using XIVLauncher.Common.PlatformAbstractions;
+﻿using XIVLauncher.Common.Game.Patch;
 
 namespace XIVLauncher.NativeAOT;
 
