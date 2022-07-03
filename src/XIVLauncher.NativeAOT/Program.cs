@@ -271,7 +271,7 @@ public class Program
     {
         try
         {
-            return LaunchServices.GetDalamudInstallState().Result == DalamudLauncher.DalamudInstallState.Ok;
+            return LaunchServices.GetDalamudInstallState() == DalamudLauncher.DalamudInstallState.Ok;
         }
         catch (Exception ex)
         {

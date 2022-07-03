@@ -255,8 +255,8 @@ public static class LaunchServices
 
     public static DalamudLauncher.DalamudInstallState GetDalamudInstallState()
     {
-        IDalamudRunner dalamudRunner;
-        IDalamudCompatibilityCheck dalamudCompatCheck;
+        IDalamudRunner dalamudRunner = null!;
+        IDalamudCompatibilityCheck dalamudCompatCheck = null!;
 
         switch (Environment.OSVersion.Platform)
         {
@@ -304,7 +304,7 @@ public static class LaunchServices
 
     public static Process StartGameAndAddon(LoginResult loginResult, bool dalamudOk)
     {
-        IDalamudRunner dalamudRunner;
+        IDalamudRunner dalamudRunner = null!;
 
         switch (Environment.OSVersion.Platform)
         {
