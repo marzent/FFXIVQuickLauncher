@@ -436,7 +436,7 @@ namespace XIVLauncher.Common.Game.Patch
                                 }
                             }
 
-                            await MoveUnnecessaryFiles(indexedZiPatchIndexInstaller, gamePath, targetRelativePaths);
+                            //await MoveUnnecessaryFiles(indexedZiPatchIndexInstaller, gamePath, targetRelativePaths);
 
                             State = VerifyState.Done;
                             break;
