@@ -10,8 +10,8 @@ public class RepairProgress
     public string CurrentStep { get; private set; } = "";
     public string CurrentFile { get; private set; } = "";
     public long Total { get; private set; } = 100;
-    public long Progress { get; private set; } = 0;
-    public long Speed { get; private set; } = 0;
+    public long Progress { get; private set; }
+    public long Speed { get; private set; }
 
     public RepairProgress()
     {

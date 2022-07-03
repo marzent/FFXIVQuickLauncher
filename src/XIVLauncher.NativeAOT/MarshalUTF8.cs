@@ -2,7 +2,7 @@
 
 namespace MarshalUTF8Extensions
 {
-    static class MarshalUTF8
+    internal static class MarshalUtf8
     {
         public static nint StringToHGlobal(string s, out int length)
         {
@@ -23,8 +23,7 @@ namespace MarshalUTF8Extensions
 
         public static nint StringToHGlobal(string s)
         {
-            int temp;
-            return StringToHGlobal(s, out temp);
+            return StringToHGlobal(s, out int _);
         }
     }
 }

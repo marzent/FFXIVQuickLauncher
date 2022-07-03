@@ -1,8 +1,6 @@
 ﻿using XIVLauncher.Common;
-using XIVLauncher.Common.Addon;
 using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.Game.Patch.Acquisition;
-using XIVLauncher.Common.Unix.Compatibility;
 
 namespace XIVLauncher.NativeAOT.Configuration;
 

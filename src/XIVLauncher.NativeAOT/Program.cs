@@ -23,28 +23,28 @@ namespace NativeLibrary;
 
 public class Program
 {
-    public static Storage? storage;
+    public static Storage? Storage;
     public static LauncherConfig? Config { get; private set; }
-    public static CommonSettings CommonSettings => CommonSettings.Instance;
-    public static DirectoryInfo DotnetRuntime => storage!.GetFolder("runtime");
+    public static CommonSettings? CommonSettings => CommonSettings.Instance;
+    public static DirectoryInfo DotnetRuntime => Storage!.GetFolder("runtime");
     public static ISteam? Steam { get; private set; }
     public static DalamudUpdater? DalamudUpdater { get; private set; }
     public static CompatibilityTools? CompatibilityTools { get; private set; }
     public static ILauncher? Launcher { get; set; }
     public static CommonUniqueIdCache? UniqueIdCache;
 
-    public const uint STEAM_APP_ID = 39210;
-    public const uint STEAM_APP_ID_FT = 312060;
+    private const uint STEAM_APP_ID = 39210;
+    private const uint STEAM_APP_ID_FT = 312060;
 
     [UnmanagedCallersOnly(EntryPoint = "initXL")]
-    public static void Init(nint appName, nint storagePath, bool VerboseLogging)
+    public static void Init(nint appName, nint storagePath, bool verboseLogging)
     {
-        storage = new Storage(Marshal.PtrToStringUTF8(appName)!, Marshal.PtrToStringUTF8(storagePath)!);
+        Storage = new Storage(Marshal.PtrToStringUTF8(appName)!, Marshal.PtrToStringUTF8(storagePath)!);
 
-        var logLevel = VerboseLogging ? LogEventLevel.Verbose : LogEventLevel.Information;
+        var logLevel = verboseLogging ? LogEventLevel.Verbose : LogEventLevel.Information;
         Log.Logger = new LoggerConfiguration()
                      .WriteTo.Async(a =>
-                         a.File(Path.Combine(storage.GetFolder("logs").FullName, "launcher.log")))
+                         a.File(Path.Combine(Storage.GetFolder("logs").FullName, "launcher.log")))
                      .WriteTo.Console()
                      .MinimumLevel.Is(logLevel)
                      .CreateLogger();
@@ -84,19 +84,19 @@ public class Program
         }
 
         var dalamudLoadInfo = new DalamudOverlayInfoProxy();
-        DalamudUpdater = new DalamudUpdater(storage.GetFolder("dalamud"), storage.GetFolder("runtime"), storage.GetFolder("dalamudAssets"), storage.Root, null)
+        DalamudUpdater = new DalamudUpdater(Storage.GetFolder("dalamud"), Storage.GetFolder("runtime"), Storage.GetFolder("dalamudAssets"), Storage.Root, null)
         {
             Overlay = dalamudLoadInfo
         };
         DalamudUpdater.Run();
 
-        UniqueIdCache = new CommonUniqueIdCache(storage.GetFile("uidCache.json"));
+        UniqueIdCache = new CommonUniqueIdCache(Storage.GetFile("uidCache.json"));
         Launcher = new SqexLauncher(UniqueIdCache, Program.CommonSettings);
         LaunchServices.EnsureLauncherAffinity((XIVLauncher.NativeAOT.Configuration.License)Config!.License!);
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "addEnviromentVariable")]
-    public static void AddEnviromentVariable(nint key, nint value)
+    [UnmanagedCallersOnly(EntryPoint = "addEnvironmentVariable")]
+    public static void AddEnvironmentVariable(nint key, nint value)
     {
         var kvp = new KeyValuePair<string, string>(Marshal.PtrToStringUTF8(key)!, Marshal.PtrToStringUTF8(value)!);
         Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
@@ -105,10 +105,10 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "createCompatToolsInstance")]
     public static void CreateCompatToolsInstance(nint winePath, nint wineDebugVars, bool esync)
     {
-        var wineLogFile = new FileInfo(Path.Combine(storage!.GetFolder("logs").FullName, "wine.log"));
-        var winePrefix = storage.GetFolder("wineprefix");
+        var wineLogFile = new FileInfo(Path.Combine(Storage!.GetFolder("logs").FullName, "wine.log"));
+        var winePrefix = Storage.GetFolder("wineprefix");
         var wineSettings = new WineSettings(WineStartupType.Custom, Marshal.PtrToStringUTF8(winePath), Marshal.PtrToStringUTF8(wineDebugVars), wineLogFile, winePrefix, esync, false);
-        var toolsFolder = storage.GetFolder("compatibilitytool");
+        var toolsFolder = Storage.GetFolder("compatibilitytool");
         CompatibilityTools = new CompatibilityTools(wineSettings, DxvkHudType.None, false, true, toolsFolder);
     }
 
@@ -116,7 +116,7 @@ public class Program
     public static nint GenerateAcceptLanguage(int seed)
     {
         // Needs to be freed by the caller
-        return MarshalUTF8.StringToHGlobal(ApiHelpers.GenerateAcceptLanguage(seed));
+        return MarshalUtf8.StringToHGlobal(ApiHelpers.GenerateAcceptLanguage(seed));
     }
 
     [UnmanagedCallersOnly(EntryPoint = "loadConfig")]
@@ -163,36 +163,38 @@ public class Program
     {
         try
         {
-            return MarshalUTF8.StringToHGlobal(LaunchServices.TryLoginToGame(Marshal.PtrToStringUTF8(username)!, Marshal.PtrToStringUTF8(password)!, Marshal.PtrToStringUTF8(otp)!, repair).Result);
+            return MarshalUtf8.StringToHGlobal(LaunchServices.TryLoginToGame(Marshal.PtrToStringUTF8(username)!, Marshal.PtrToStringUTF8(password)!, Marshal.PtrToStringUTF8(otp)!, repair).Result);
         }
         catch (AggregateException ex)
         {
             string lastException = "";
+
             foreach (var iex in ex.InnerExceptions)
             {
                 Log.Error(iex, "An error during login occured");
                 lastException = iex.Message;
             }
-            return MarshalUTF8.StringToHGlobal(lastException);
+
+            return MarshalUtf8.StringToHGlobal(lastException);
         }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getUserAgent")]
     public static nint GetUserAgent()
     {
-        return MarshalUTF8.StringToHGlobal(Launcher!.GenerateUserAgent());
+        return MarshalUtf8.StringToHGlobal(Launcher!.GenerateUserAgent());
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getPatcherUserAgent")]
     public static nint GetPatcherUserAgent()
     {
-        return MarshalUTF8.StringToHGlobal(Constants.PatcherUserAgent);
+        return MarshalUtf8.StringToHGlobal(Constants.PatcherUserAgent);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getBootPatches")]
     public static nint GetBootPatches()
     {
-        return MarshalUTF8.StringToHGlobal(LaunchServices.GetBootPatches().Result);
+        return MarshalUtf8.StringToHGlobal(LaunchServices.GetBootPatches().Result);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "installPatch")]
@@ -202,12 +204,12 @@ public class Program
         {
             RemotePatchInstaller.InstallPatch(Marshal.PtrToStringUTF8(patch)!, Marshal.PtrToStringUTF8(repo)!);
             Log.Information("OK");
-            return MarshalUTF8.StringToHGlobal("OK");
+            return MarshalUtf8.StringToHGlobal("OK");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Patch installation failed");
-            return MarshalUTF8.StringToHGlobal(ex.Message);
+            return MarshalUtf8.StringToHGlobal(ex.Message);
         }
     }
 
@@ -228,26 +230,24 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "repairGame")]
-    public static nint RepairGame(nint loginResultJSON)
+    public static nint RepairGame(nint loginResultJson)
     {
         try
         {
-            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJSON)!);
-            return MarshalUTF8.StringToHGlobal(LaunchServices.RepairGame(loginResult).Result);
+            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJson)!);
+            return MarshalUtf8.StringToHGlobal(LaunchServices.RepairGame(loginResult).Result);
         }
         catch (AggregateException ex)
         {
             string lastException = "";
+
             foreach (var iex in ex.InnerExceptions)
             {
                 Log.Error(iex, "An error during game repair has occured");
                 lastException = iex.Message;
             }
-            return MarshalUTF8.StringToHGlobal(lastException);
-        }
-        catch (Exception ex)
-        {
-            return MarshalUTF8.StringToHGlobal(ex.Message);
+
+            return MarshalUtf8.StringToHGlobal(lastException);
         }
     }
 
@@ -257,12 +257,12 @@ public class Program
         try
         {
             var progress = new RepairProgress(LaunchServices.CurrentPatchVerifier);
-            return MarshalUTF8.StringToHGlobal(JsonConvert.SerializeObject(progress));
+            return MarshalUtf8.StringToHGlobal(JsonConvert.SerializeObject(progress));
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Querying Repair Progress Info failed");
-            return MarshalUTF8.StringToHGlobal(JsonConvert.SerializeObject(new RepairProgress()));
+            return MarshalUtf8.StringToHGlobal(JsonConvert.SerializeObject(new RepairProgress()));
         }
     }
 
@@ -281,32 +281,30 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "startGame")]
-    public static nint StartGame(nint loginResultJSON, bool dalamudOk)
+    public static nint StartGame(nint loginResultJson, bool dalamudOk)
     {
         try
         {
-            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJSON)!);
+            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJson)!);
             var process = LaunchServices.StartGameAndAddon(loginResult, dalamudOk);
             var ret = new DalamudConsoleOutput
             {
                 Handle = (long)process.Handle,
                 Pid = process.Id
             };
-            return MarshalUTF8.StringToHGlobal(JsonConvert.SerializeObject(ret));
+            return MarshalUtf8.StringToHGlobal(JsonConvert.SerializeObject(ret));
         }
         catch (AggregateException ex)
         {
             string lastException = "";
+
             foreach (var iex in ex.InnerExceptions)
             {
                 Log.Error(iex, "An error during game startup has occured");
                 lastException = iex.Message;
             }
-            return MarshalUTF8.StringToHGlobal(lastException);
-        }
-        catch (Exception ex)
-        {
-            return MarshalUTF8.StringToHGlobal(ex.Message);
+
+            return MarshalUtf8.StringToHGlobal(lastException);
         }
     }
 
@@ -323,6 +321,7 @@ public class Program
             {
                 Log.Error(iex, $"An error occured getting the exit code of pid {pid}");
             }
+
             return -42069;
         }
     }
@@ -362,7 +361,7 @@ public class Program
     public static nint GetProcessIds(nint executableName)
     {
         var pids = CompatibilityTools!.GetProcessIds(Marshal.PtrToStringUTF8(executableName)!);
-        return MarshalUTF8.StringToHGlobal(string.Join(" ", pids));
+        return MarshalUtf8.StringToHGlobal(string.Join(" ", pids));
     }
 
     [UnmanagedCallersOnly(EntryPoint = "killWine")]

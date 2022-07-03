@@ -13,7 +13,7 @@ namespace XIVLauncher.Common.Game.Launcher;
 
 public class MacSqexLauncher : SqexLauncher
 {
-    public MacSqexLauncher(IUniqueIdCache uniqueIdCache, ISettings settings) : base(uniqueIdCache, settings)
+    public MacSqexLauncher(IUniqueIdCache uniqueIdCache, ISettings? settings) : base(uniqueIdCache, settings)
     {
     }
 

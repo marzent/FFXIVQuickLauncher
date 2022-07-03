@@ -18,11 +18,11 @@ using XIVLauncher.NativeAOT.Configuration;
 
 namespace XIVLauncher.NativeAOT;
 
-public class LaunchServices
+public static class LaunchServices
 {
     public static PatchVerifier? CurrentPatchVerifier { get; private set; } = null;
 
-    public enum LoginAction
+    private enum LoginAction
     {
         Game,
         GameNoDalamud,
@@ -48,16 +48,20 @@ public class LaunchServices
                 PlatformHelpers.IsMac = false;
                 Program.Launcher = new SqexLauncher(Program.UniqueIdCache!, Program.CommonSettings);
                 return;
+
             case License.Mac:
                 PlatformHelpers.IsMac = true;
                 if (Program.Launcher is MacSqexLauncher)
                     return;
+
                 Program.Launcher = new MacSqexLauncher(Program.UniqueIdCache!, Program.CommonSettings);
                 return;
+
             case License.Steam:
                 PlatformHelpers.IsMac = false;
                 if (Program.Launcher is SteamSqexLauncher)
                     return;
+
                 Program.Launcher = new SteamSqexLauncher(Program.Steam, Program.UniqueIdCache!, Program.CommonSettings);
                 return;
         }
@@ -80,45 +84,16 @@ public class LaunchServices
 
     private static async Task<LoginResult> TryLoginToGame(string username, string password, string otp, LoginAction action)
     {
-        bool? gateStatus = null;
-
-#if !DEBUG
         try
         {
-            // TODO: Also apply the login status fix here
-            var gate = await Program.Launcher.GetGateStatus(Program.Config.ClientLanguage ?? ClientLanguage.English).ConfigureAwait(false);
-            gateStatus = gate.Status;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Could not obtain gate status");
-        }
-
-        if (gateStatus == null)
-        {
-            Log.Error("Login servers could not be reached or maintenance is in progress. This might be a problem with your connection.");
-
-            throw new Exception("Login servers could not be reached or maintenance is in progress. This might be a problem with your connection.");
-        }
-
-        if (gateStatus == false)
-        {
-            Log.Error("FFXIV is currently under maintenance. Please try again later or see official sources for more information.");
-
-            throw new Exception("FFXIV is currently under maintenance. Please try again later or see official sources for more information.");
-        }
-#endif
-
-        try
-        {
-            var enableUidCache = Program.Config.IsUidCacheEnabled ?? false;
-            var gamePath = Program.Config.GamePath;
+            var enableUidCache = Program.Config?.IsUidCacheEnabled ?? false;
+            var gamePath = Program.Config!.GamePath;
 
             EnsureLauncherAffinity((License)Program.Config.License);
             if (action == LoginAction.Repair)
-                return await Program.Launcher.Login(username, password, otp, false, gamePath, true, Program.Config.IsFt.GetValueOrDefault(false)).ConfigureAwait(false);
+                return await Program.Launcher!.Login(username, password, otp, false, gamePath, true, Program.Config.IsFt.GetValueOrDefault(false)).ConfigureAwait(false);
             else
-                return await Program.Launcher.Login(username, password, otp, enableUidCache, gamePath, false, Program.Config.IsFt.GetValueOrDefault(false)).ConfigureAwait(false);
+                return await Program.Launcher!.Login(username, password, otp, enableUidCache, gamePath, false, Program.Config.IsFt.GetValueOrDefault(false)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -278,7 +253,7 @@ public class LaunchServices
     //    }
     //}
 
-    public static async Task<DalamudLauncher.DalamudInstallState> GetDalamudInstallState()
+    public static DalamudLauncher.DalamudInstallState GetDalamudInstallState()
     {
         IDalamudRunner dalamudRunner;
         IDalamudCompatibilityCheck dalamudCompatCheck;
@@ -289,16 +264,15 @@ public class LaunchServices
                 dalamudRunner = new WindowsDalamudRunner();
                 dalamudCompatCheck = new WindowsDalamudCompatibilityCheck();
                 break;
+
             case PlatformID.Unix:
                 dalamudRunner = new UnixDalamudRunner(Program.CompatibilityTools, Program.DotnetRuntime);
                 dalamudCompatCheck = new UnixDalamudCompatibilityCheck();
                 break;
-            default:
-                throw new NotImplementedException();
         }
 
         var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
-            Program.Config.GamePath, Program.storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay);
+            Program.Config.GamePath, Program.Storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay);
 
         try
         {
@@ -337,15 +311,14 @@ public class LaunchServices
             case PlatformID.Win32NT:
                 dalamudRunner = new WindowsDalamudRunner();
                 break;
+
             case PlatformID.Unix:
                 dalamudRunner = new UnixDalamudRunner(Program.CompatibilityTools, Program.DotnetRuntime);
                 break;
-            default:
-                throw new NotImplementedException();
         }
 
         var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
-            Program.Config.GamePath, Program.storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay);
+            Program.Config.GamePath, Program.Storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay);
 
         IGameRunner runner;
 
@@ -402,9 +375,9 @@ public class LaunchServices
 
         try
         {
-            if (Program.Steam.IsValid)
+            if (Program.Steam?.IsValid ?? false)
             {
-                Program.Steam.Shutdown();
+                Program.Steam?.Shutdown();
             }
         }
         catch (Exception ex)
@@ -436,12 +409,13 @@ public class LaunchServices
 
             case PatchVerifier.VerifyState.Error:
                 if (verify.LastException is NoVersionReferenceException)
-                    return "The version of the game you are on cannot be repaired by XIVLauncher yet, as reference information is not yet available.\nPlease try again later.";
+                    return "The version of the game you are on cannot be repaired by XIV on Mac yet, as reference information is not yet available.\nPlease try again later.";
                 return "An error occurred while repairing the game files.\nYou may have to reinstall the game.";
 
             case PatchVerifier.VerifyState.Cancelled:
                 return "Cancelled"; //should not reach
         }
+
         return string.Empty;
     }
 }

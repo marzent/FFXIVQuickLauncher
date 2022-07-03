@@ -35,12 +35,12 @@ namespace XIVLauncher.Common.Game.Launcher;
 public class SqexLauncher : ILauncher
 {
     private readonly IUniqueIdCache uniqueIdCache;
-    private readonly ISettings settings;
+    private readonly ISettings? settings;
     private readonly HttpClient client;
     private OauthLoginResult? oauthLoginResult;
     private string? uniqueId;
 
-    public SqexLauncher(IUniqueIdCache uniqueIdCache, ISettings settings)
+    public SqexLauncher(IUniqueIdCache uniqueIdCache, ISettings? settings)
     {
         this.uniqueIdCache = uniqueIdCache;
         this.settings = settings;

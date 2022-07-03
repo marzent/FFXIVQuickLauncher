@@ -33,7 +33,7 @@ class Program
     public static GraphicsDevice GraphicsDevice => gd;
     public static ImGuiBindings ImGuiBindings => bindings;
     public static ILauncherConfig Config { get; private set; }
-    public static CommonSettings CommonSettings => new(Config);
+    public static CommonSettings? CommonSettings => new(Config);
     public static ISteam? Steam { get; private set; }
     public static DalamudUpdater DalamudUpdater { get; private set; }
     public static DalamudOverlayInfoProxy DalamudLoadInfo { get; private set; }

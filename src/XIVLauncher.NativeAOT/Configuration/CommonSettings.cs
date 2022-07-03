@@ -13,9 +13,9 @@ public class CommonSettings : ISettings
         this.config = NativeLibrary.Program.Config!;
     }
 
-    private static CommonSettings instance;
+    private static CommonSettings? instance;
 
-    public static CommonSettings Instance
+    public static CommonSettings? Instance
     {
         get
         {

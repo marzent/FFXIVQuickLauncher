@@ -24,13 +24,13 @@ public class SteamSqexLauncher : SqexLauncher
     private readonly byte[]? steamTicketData;
     private Ticket? steamTicket;
 
-    public SteamSqexLauncher(ISteam? steam, IUniqueIdCache uniqueIdCache, ISettings settings)
+    public SteamSqexLauncher(ISteam? steam, IUniqueIdCache uniqueIdCache, ISettings? settings)
         : base(uniqueIdCache, settings)
     {
         this.steam = steam;
     }
 
-    public SteamSqexLauncher(byte[] steamTicketData, IUniqueIdCache uniqueIdCache, ISettings settings)
+    public SteamSqexLauncher(byte[] steamTicketData, IUniqueIdCache uniqueIdCache, ISettings? settings)
         : base(uniqueIdCache, settings)
     {
         this.steamTicketData = steamTicketData;
