@@ -336,7 +336,8 @@ public class Program
     public static void RunInPrefix(nint command, bool blocking, bool wineD3D)
     {
         var commandStr = Marshal.PtrToStringUTF8(command)!;
-        var process = CompatibilityTools!.RunInPrefix(commandStr);
+        var process = CompatibilityTools!.RunInPrefix(commandStr, wineD3D: wineD3D);
+
         if (blocking)
         {
             process.WaitForExit();
