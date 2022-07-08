@@ -112,6 +112,19 @@ public class Program
         CompatibilityTools = new CompatibilityTools(wineSettings, DxvkHudType.None, false, true, toolsFolder);
     }
 
+    [UnmanagedCallersOnly(EntryPoint = "ensurePrefix")]
+    public static void EnsurePrefix()
+    {
+        try
+        {
+            CompatibilityTools?.EnsurePrefix();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Couldn't ensure Prefix");
+        }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "generateAcceptLanguage")]
     public static nint GenerateAcceptLanguage(int seed)
     {
