@@ -113,7 +113,14 @@ public class CompatibilityTools
 
     public void EnsurePrefix()
     {
-        RunInPrefix("cmd /c dir %userprofile%/Documents > nul").WaitForExit();
+        var winebootProcess = RunInPrefix("wineboot -u");
+        var psi = new ProcessStartInfo(WineServerPath)
+        {
+            Arguments = "-w"
+        };
+        psi.EnvironmentVariables.Add("WINEPREFIX", Settings.Prefix.FullName);
+        Process.Start(psi);
+        winebootProcess.WaitForExit();
     }
 
     public Process RunInPrefix(string command, string workingDirectory = "", IDictionary<string, string> environment = null, bool redirectOutput = false, bool writeLog = false, bool wineD3D = false)
