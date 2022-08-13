@@ -10,7 +10,8 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Serilog;
 using XIVLauncher.Common.Game.Exceptions;
 using XIVLauncher.Common.Patching.IndexedZiPatch;
@@ -90,42 +91,42 @@ namespace XIVLauncher.Common.Game.Patch
             public Uri Uri;
         }
 
-        private class VerifyVersions
+        internal class VerifyVersions
         {
-            [JsonProperty("boot")]
+            [JsonPropertyName("boot")]
             public string Boot { get; set; }
 
-            [JsonProperty("bootRevision")]
+            [JsonPropertyName("bootRevision")]
             public int BootRevision { get; set; }
 
-            [JsonProperty("game")]
+            [JsonPropertyName("game")]
             public string Game { get; set; }
 
-            [JsonProperty("gameRevision")]
+            [JsonPropertyName("gameRevision")]
             public int GameRevision { get; set; }
 
-            [JsonProperty("ex1")]
+            [JsonPropertyName("ex1")]
             public string Ex1 { get; set; }
 
-            [JsonProperty("ex1Revision")]
+            [JsonPropertyName("ex1Revision")]
             public int Ex1Revision { get; set; }
 
-            [JsonProperty("ex2")]
+            [JsonPropertyName("ex2")]
             public string Ex2 { get; set; }
 
-            [JsonProperty("ex2Revision")]
+            [JsonPropertyName("ex2Revision")]
             public int Ex2Revision { get; set; }
 
-            [JsonProperty("ex3")]
+            [JsonPropertyName("ex3")]
             public string Ex3 { get; set; }
 
-            [JsonProperty("ex3Revision")]
+            [JsonPropertyName("ex3Revision")]
             public int Ex3Revision { get; set; }
 
-            [JsonProperty("ex4")]
+            [JsonPropertyName("ex4")]
             public string Ex4 { get; set; }
 
-            [JsonProperty("ex4Revision")]
+            [JsonPropertyName("ex4Revision")]
             public int Ex4Revision { get; set; }
         }
 
@@ -196,10 +197,12 @@ namespace XIVLauncher.Common.Game.Patch
         private bool AdminAccessRequired(string gameRootPath)
         {
             string tempFn;
+
             do
             {
                 tempFn = Path.Combine(gameRootPath, Guid.NewGuid().ToString());
             } while (File.Exists(tempFn));
+
             try
             {
                 File.WriteAllText(tempFn, "");
@@ -209,6 +212,7 @@ namespace XIVLauncher.Common.Game.Patch
             {
                 return true;
             }
+
             return false;
         }
 
@@ -289,6 +293,7 @@ namespace XIVLauncher.Common.Game.Patch
             State = VerifyState.NotStarted;
             LastException = null;
             IIndexedZiPatchIndexInstaller indexedZiPatchIndexInstaller = null;
+
             try
             {
 
@@ -334,7 +339,8 @@ namespace XIVLauncher.Common.Game.Patch
 
                             foreach (var metaPath in _repoMetaPaths)
                             {
-                                var patchIndex = new IndexedZiPatchIndex(new BinaryReader(new DeflateStream(new FileStream(metaPath.Value, FileMode.Open, FileAccess.Read), CompressionMode.Decompress)));
+                                var patchIndex = new IndexedZiPatchIndex(
+                                    new BinaryReader(new DeflateStream(new FileStream(metaPath.Value, FileMode.Open, FileAccess.Read), CompressionMode.Decompress)));
                                 var adjustedGamePath = patchIndex.ExpacVersion == IndexedZiPatchIndex.EXPAC_VERSION_BOOT ? bootPath : gamePath;
 
                                 foreach (var target in patchIndex.Targets)
@@ -367,6 +373,7 @@ namespace XIVLauncher.Common.Game.Patch
 
                                     var fileBroken = new bool[patchIndex.Length].ToList();
                                     var repaired = false;
+
                                     for (var attemptIndex = 0; attemptIndex < REATTEMPT_COUNT; attemptIndex++)
                                     {
                                         CurrentMetaInstallState = IndexedZiPatchInstaller.InstallTaskState.NotStarted;
@@ -396,6 +403,7 @@ namespace XIVLauncher.Common.Game.Patch
 
                                         await indexedZiPatchIndexInstaller.SetTargetStreamsFromPathReadWriteForMissingFiles(adjustedGamePath).ConfigureAwait(false);
                                         var prefix = patchIndex.ExpacVersion == IndexedZiPatchIndex.EXPAC_VERSION_BOOT ? "boot:" : $"ex{patchIndex.ExpacVersion}:";
+
                                         for (var i = 0; i < patchIndex.Sources.Count; i++)
                                         {
                                             var patchSourceKey = prefix + patchIndex.Sources[i];
@@ -416,6 +424,7 @@ namespace XIVLauncher.Common.Game.Patch
                                         }
 
                                         CurrentMetaInstallState = IndexedZiPatchInstaller.InstallTaskState.Connecting;
+
                                         try
                                         {
                                             await indexedZiPatchIndexInstaller.Install(MAX_CONCURRENT_CONNECTIONS_FOR_PATCH_SET, _cancellationTokenSource.Token).ConfigureAwait(false);
@@ -428,6 +437,7 @@ namespace XIVLauncher.Common.Game.Patch
                                                 throw;
                                         }
                                     }
+
                                     if (!repaired)
                                         throw new IOException($"Failed to repair after {REATTEMPT_COUNT} attempts");
                                     NumBrokenFiles += fileBroken.Where(x => x).Count();
@@ -459,12 +469,13 @@ namespace XIVLauncher.Common.Game.Patch
                     State = VerifyState.Cancelled;
                 else if (_cancellationTokenSource.IsCancellationRequested)
                     State = VerifyState.Cancelled;
-                else if (ex is Win32Exception winex && (uint)winex.HResult == 0x80004005u)  // The operation was canceled by the user (UAC dialog cancellation)
+                else if (ex is Win32Exception winex && (uint)winex.HResult == 0x80004005u) // The operation was canceled by the user (UAC dialog cancellation)
                     State = VerifyState.Cancelled;
                 else
                 {
                     Log.Error(ex, "Unexpected error occurred in RunVerifier");
                     Log.Information("_patchSources had following:");
+
                     foreach (var kvp in _patchSources)
                     {
                         Log.Information("* \"{0}\" = {1} / {2}({3})", kvp.Key, kvp.Value.Uri.ToString(), kvp.Value.FileInfo.FullName, kvp.Value.FileInfo.Exists ? "Exists" : "Nonexistent");
@@ -496,7 +507,7 @@ namespace XIVLauncher.Common.Game.Patch
             var latestVersionJson = await _client.GetStringAsync(BASE_URL + "latest.json").ConfigureAwait(false);
             _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
-            var latestVersion = JsonConvert.DeserializeObject<VerifyVersions>(latestVersionJson);
+            var latestVersion = JsonSerializer.Deserialize(latestVersionJson, VerifyVersionsJsonContext.Default.VerifyVersions);
 
             PatchSetIndex++;
             await this.GetRepoMeta(Repository.Ffxiv, latestVersion.Game, metaFolder, latestVersion.GameRevision).ConfigureAwait(false);
@@ -578,6 +589,7 @@ namespace XIVLauncher.Common.Game.Patch
                             await targetStream.WriteAsync(buffer.Buffer, 0, read, _cancellationTokenSource.Token).ConfigureAwait(false);
                         }
                     }
+
                     complete = true;
                 }
                 finally
@@ -611,5 +623,10 @@ namespace XIVLauncher.Common.Game.Patch
                 _verificationTask.Wait();
             }
         }
+    }
+
+    [JsonSerializable(typeof(PatchVerifier.VerifyVersions))]
+    internal partial class VerifyVersionsJsonContext: JsonSerializerContext
+    {
     }
 }

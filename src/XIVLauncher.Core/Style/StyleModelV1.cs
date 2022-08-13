@@ -1,6 +1,7 @@
 using System.Numerics;
 using ImGuiNET;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace XIVLauncher.Core.Style;
 
@@ -218,88 +219,88 @@ public class StyleModelV1 : StyleModel
 
 #pragma warning disable SA1600
 
-    [JsonProperty("a")]
+    [JsonPropertyName("a")]
     public float Alpha { get; set; }
 
-    [JsonProperty("b")]
+    [JsonPropertyName("b")]
     public Vector2 WindowPadding { get; set; }
 
-    [JsonProperty("c")]
+    [JsonPropertyName("c")]
     public float WindowRounding { get; set; }
 
-    [JsonProperty("d")]
+    [JsonPropertyName("d")]
     public float WindowBorderSize { get; set; }
 
-    [JsonProperty("e")]
+    [JsonPropertyName("e")]
     public Vector2 WindowTitleAlign { get; set; }
 
-    [JsonProperty("f")]
+    [JsonPropertyName("f")]
     public ImGuiDir WindowMenuButtonPosition { get; set; }
 
-    [JsonProperty("g")]
+    [JsonPropertyName("g")]
     public float ChildRounding { get; set; }
 
-    [JsonProperty("h")]
+    [JsonPropertyName("h")]
     public float ChildBorderSize { get; set; }
 
-    [JsonProperty("i")]
+    [JsonPropertyName("i")]
     public float PopupRounding { get; set; }
 
-    [JsonProperty("ab")]
+    [JsonPropertyName("ab")]
     public float PopupBorderSize { get; set; }
 
-    [JsonProperty("j")]
+    [JsonPropertyName("j")]
     public Vector2 FramePadding { get; set; }
 
-    [JsonProperty("k")]
+    [JsonPropertyName("k")]
     public float FrameRounding { get; set; }
 
-    [JsonProperty("l")]
+    [JsonPropertyName("l")]
     public float FrameBorderSize { get; set; }
 
-    [JsonProperty("m")]
+    [JsonPropertyName("m")]
     public Vector2 ItemSpacing { get; set; }
 
-    [JsonProperty("n")]
+    [JsonPropertyName("n")]
     public Vector2 ItemInnerSpacing { get; set; }
 
-    [JsonProperty("o")]
+    [JsonPropertyName("o")]
     public Vector2 CellPadding { get; set; }
 
-    [JsonProperty("p")]
+    [JsonPropertyName("p")]
     public Vector2 TouchExtraPadding { get; set; }
 
-    [JsonProperty("q")]
+    [JsonPropertyName("q")]
     public float IndentSpacing { get; set; }
 
-    [JsonProperty("r")]
+    [JsonPropertyName("r")]
     public float ScrollbarSize { get; set; }
 
-    [JsonProperty("s")]
+    [JsonPropertyName("s")]
     public float ScrollbarRounding { get; set; }
 
-    [JsonProperty("t")]
+    [JsonPropertyName("t")]
     public float GrabMinSize { get; set; }
 
-    [JsonProperty("u")]
+    [JsonPropertyName("u")]
     public float GrabRounding { get; set; }
 
-    [JsonProperty("v")]
+    [JsonPropertyName("v")]
     public float LogSliderDeadzone { get; set; }
 
-    [JsonProperty("w")]
+    [JsonPropertyName("w")]
     public float TabRounding { get; set; }
 
-    [JsonProperty("x")]
+    [JsonPropertyName("x")]
     public float TabBorderSize { get; set; }
 
-    [JsonProperty("y")]
+    [JsonPropertyName("y")]
     public Vector2 ButtonTextAlign { get; set; }
 
-    [JsonProperty("z")]
+    [JsonPropertyName("z")]
     public Vector2 SelectableTextAlign { get; set; }
 
-    [JsonProperty("aa")]
+    [JsonPropertyName("aa")]
     public Vector2 DisplaySafeAreaPadding { get; set; }
 
 #pragma warning restore SA1600
@@ -307,7 +308,7 @@ public class StyleModelV1 : StyleModel
     /// <summary>
     /// Gets or sets a dictionary mapping ImGui color names to colors.
     /// </summary>
-    [JsonProperty("col")]
+    [JsonPropertyName("col")]
     public Dictionary<string, Vector4> Colors { get; set; }
 
     /// <summary>

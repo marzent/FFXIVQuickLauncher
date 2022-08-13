@@ -1,6 +1,6 @@
-﻿using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
 using System.Net;
+using System.Text.Json.Serialization;
 using Newtonsoft.Json.Linq;
 
 namespace XIVLauncher.Core.Accounts;

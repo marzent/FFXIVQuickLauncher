@@ -2,7 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using NativeLibrary;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
@@ -37,7 +37,7 @@ public static class LaunchServices
 
         var result = await TryLoginToGame(username, password, otp, action).ConfigureAwait(false);
 
-        return JsonConvert.SerializeObject(result, Formatting.Indented); ;
+        return JsonSerializer.Serialize(result, ProgramJsonContext.Default.LoginResult);
     }
 
     public static void EnsureLauncherAffinity(License license)
@@ -73,7 +73,7 @@ public static class LaunchServices
         {
             var bootPatches = await Program.Launcher!.CheckBootVersion(Program.Config!.GamePath).ConfigureAwait(false);
 
-            return JsonConvert.SerializeObject(bootPatches, Formatting.Indented);
+            return JsonSerializer.Serialize(bootPatches, ProgramJsonContext.Default.PatchListEntryArray);
         }
         catch (Exception ex)
         {

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.PlatformAbstractions;
 
 namespace XIVLauncher.PlatformAbstractions
@@ -26,7 +28,7 @@ namespace XIVLauncher.PlatformAbstractions
 
         public void Save()
         {
-            File.WriteAllText(configFile.FullName, JsonConvert.SerializeObject(_cache, Formatting.Indented));
+            File.WriteAllText(configFile.FullName, JsonSerializer.Serialize(_cache, UniqueIdCacheEntryJsonContext.Default.ListUniqueIdCacheEntry));
         }
 
         public void Load()
@@ -37,7 +39,7 @@ namespace XIVLauncher.PlatformAbstractions
                 return;
             }
 
-            _cache = JsonConvert.DeserializeObject<List<UniqueIdCacheEntry>>(File.ReadAllText(configFile.FullName)) ?? new List<UniqueIdCacheEntry>();
+            _cache = JsonSerializer.Deserialize(File.ReadAllText(configFile.FullName), UniqueIdCacheEntryJsonContext.Default.ListUniqueIdCacheEntry) ?? new List<UniqueIdCacheEntry>();
         }
 
         public void Reset()
@@ -106,5 +108,10 @@ namespace XIVLauncher.PlatformAbstractions
 
             public DateTime CreationDate { get; set; }
         }
+    }
+
+    [JsonSerializable(typeof(List<CommonUniqueIdCache.UniqueIdCacheEntry>))]
+    internal partial class UniqueIdCacheEntryJsonContext: JsonSerializerContext
+    {
     }
 }

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 using XIVLauncher.Common.Util;
 
@@ -81,7 +81,7 @@ namespace XIVLauncher.Common.Game
         {
             using (var client = new WebClient())
             {
-                return JsonConvert.DeserializeObject<IntegrityCheckResult>(
+                return JsonSerializer.Deserialize<IntegrityCheckResult>(
                     client.DownloadString(INTEGRITY_CHECK_BASE_URL + gameVersion + ".json"));
             }
         }

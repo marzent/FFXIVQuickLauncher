@@ -1,13 +1,18 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace XIVLauncher.Common.Dalamud
 {
     public sealed class DalamudConsoleOutput
     {
-        [JsonProperty("pid")]
+        [JsonPropertyName("pid")]
         public int Pid { get; set; }
 
-        [JsonProperty("handle")]
+        [JsonPropertyName("handle")]
         public long Handle { get; set; }
+    }
+
+    [JsonSerializable(typeof(DalamudConsoleOutput))]
+    public partial class DalamudConsoleOutputJsonContext: JsonSerializerContext
+    {
     }
 }

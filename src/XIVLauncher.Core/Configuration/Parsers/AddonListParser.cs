@@ -1,5 +1,5 @@
 ﻿using Config.Net;
-using Newtonsoft.Json;
+using System.Text.Json;
 using XIVLauncher.Common.Addon;
 
 namespace XIVLauncher.Core.Configuration.Parsers;
@@ -11,7 +11,7 @@ internal class AddonListParser : ITypeParser
     public string ToRawString(object value)
     {
         if (value is List<AddonEntry> list)
-            return JsonConvert.SerializeObject(list);
+            return JsonSerializer.Serialize(list);
 
         return null;
     }
@@ -26,7 +26,7 @@ internal class AddonListParser : ITypeParser
 
         if (t == typeof(List<AddonEntry>))
         {
-            result = JsonConvert.DeserializeObject<List<AddonEntry>>(value);
+            result = JsonSerializer.Deserialize<List<AddonEntry>>(value);
             return true;
         }
 

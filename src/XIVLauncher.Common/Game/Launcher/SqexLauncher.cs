@@ -19,7 +19,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 using XIVLauncher.Common.Game.Patch.PatchList;
 using XIVLauncher.Common.Encryption;
@@ -499,7 +499,7 @@ public class SqexLauncher : ILauncher
                 await DownloadAsLauncher(
                     $"https://frontier.ffxiv.com/worldStatus/gate_status.json?lang={language.GetLangCode()}&_={ApiHelpers.GetUnixMillis()}", language).ConfigureAwait(true));
 
-            return JsonConvert.DeserializeObject<GateStatus>(reply);
+            return JsonSerializer.Deserialize<GateStatus>(reply);
         }
         catch (Exception exc)
         {
@@ -528,13 +528,11 @@ public class SqexLauncher : ILauncher
         var hashString = Environment.MachineName + Environment.UserName + Environment.OSVersion +
                          Environment.ProcessorCount;
 
-        using var sha1 = HashAlgorithm.Create("SHA1");
-
         var bytes = new byte[5];
 
-        Array.Copy(sha1.ComputeHash(Encoding.Unicode.GetBytes(hashString)), 0, bytes, 1, 4);
+        Array.Copy(BitConverter.GetBytes(hashString.GetHashCode()), 0, bytes, 1, 4);
 
-        var checkSum = (byte)-(bytes[1] + bytes[2] + bytes[3] + bytes[4]);
+        var checkSum = (byte) -(bytes[1] + bytes[2] + bytes[3] + bytes[4]);
         bytes[0] = checkSum;
 
         return BitConverter.ToString(bytes).Replace("-", "").ToLower();

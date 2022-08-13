@@ -1,5 +1,5 @@
 ﻿using System.Collections.ObjectModel;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 
 namespace XIVLauncher.Core.Accounts;
@@ -71,7 +71,7 @@ public class AccountManager
 
     public void Save()
     {
-        File.WriteAllText(this.configFile.FullName, JsonConvert.SerializeObject(Accounts, Formatting.Indented));
+        File.WriteAllText(this.configFile.FullName, JsonSerializer.Serialize(Accounts));
     }
 
     public void Load()
@@ -84,7 +84,7 @@ public class AccountManager
             return;
         }
 
-        Accounts = JsonConvert.DeserializeObject<ObservableCollection<XivAccount>>(File.ReadAllText(this.configFile.FullName));
+        Accounts = JsonSerializer.Deserialize<ObservableCollection<XivAccount>>(File.ReadAllText(this.configFile.FullName));
 
         // If the file is corrupted, this will be null anyway
         Accounts ??= new ObservableCollection<XivAccount>();

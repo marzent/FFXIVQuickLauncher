@@ -8,7 +8,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using CheapLoc;
 using Config.Net;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 using Serilog.Events;
 using XIVLauncher.Common;
@@ -338,7 +338,7 @@ namespace XIVLauncher
 #if DEBUG
                         Log.Information("Saving integrity to " + saveIntegrityPath);
 #endif
-                        File.WriteAllText(saveIntegrityPath, JsonConvert.SerializeObject(result));
+                        File.WriteAllText(saveIntegrityPath, JsonSerializer.Serialize(result));
 
                         MessageBox.Show($"Successfully hashed {result.Hashes.Count} files.");
                         Environment.Exit(0);

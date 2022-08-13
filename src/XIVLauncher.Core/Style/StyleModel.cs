@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace XIVLauncher.Core.Style;
 
@@ -10,13 +11,13 @@ public abstract class StyleModel
     /// <summary>
     /// Gets or sets the name of the style model.
     /// </summary>
-    [JsonProperty("name")]
+    [JsonPropertyName("name")]
     public string Name { get; set; } = "Unknown";
 
     /// <summary>
     /// Gets or sets version number of this model.
     /// </summary>
-    [JsonProperty("ver")]
+    [JsonPropertyName("ver")]
     public int Version { get; set; }
 
     /// <summary>

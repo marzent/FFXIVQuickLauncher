@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.PlatformAbstractions;
@@ -93,7 +93,7 @@ public class UnixDalamudRunner : IDalamudRunner
 
         try
         {
-            var dalamudConsoleOutput = JsonConvert.DeserializeObject<DalamudConsoleOutput>(output);
+            var dalamudConsoleOutput = JsonSerializer.Deserialize(output, DalamudConsoleOutputJsonContext.Default.DalamudConsoleOutput);
             var unixPid = compatibility.GetUnixProcessId(dalamudConsoleOutput.Pid);
 
             if (unixPid == 0)
@@ -106,7 +106,7 @@ public class UnixDalamudRunner : IDalamudRunner
             Log.Verbose($"Got game process handle {gameProcess.Handle} with Unix pid {gameProcess.Id} and Wine pid {dalamudConsoleOutput.Pid}");
             return gameProcess;
         }
-        catch (JsonReaderException ex)
+        catch (Exception ex)
         {
             Log.Error(ex, $"Couldn't parse Dalamud output: {output}");
             return null;

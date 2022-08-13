@@ -1,5 +1,5 @@
 ﻿using AdysTech.CredentialManager;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 using System;
 using System.ComponentModel;

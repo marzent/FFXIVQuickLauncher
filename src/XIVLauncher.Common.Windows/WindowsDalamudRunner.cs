@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Serilog;
 using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.PlatformAbstractions;
@@ -71,7 +71,7 @@ public class WindowsDalamudRunner : IDalamudRunner
 
             try
             {
-                var dalamudConsoleOutput = JsonConvert.DeserializeObject<DalamudConsoleOutput>(output);
+                var dalamudConsoleOutput = JsonSerializer.Deserialize(output, DalamudConsoleOutputJsonContext.Default.DalamudConsoleOutput);
                 Process gameProcess;
 
                 if (dalamudConsoleOutput.Handle == 0)
@@ -100,7 +100,7 @@ public class WindowsDalamudRunner : IDalamudRunner
 
                 return gameProcess;
             }
-            catch (JsonReaderException ex)
+            catch (Exception ex)
             {
                 Log.Error(ex, $"Couldn't parse Dalamud output: {output}");
                 return null;

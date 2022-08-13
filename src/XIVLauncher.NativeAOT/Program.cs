@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.JavaScript;
 using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
@@ -13,13 +14,23 @@ using static XIVLauncher.Common.Unix.Compatibility.Dxvk;
 using XIVLauncher.Common.Game.Launcher;
 using XIVLauncher.PlatformAbstractions;
 using XIVLauncher.NativeAOT;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using XIVLauncher.Common.Game;
 using XIVLauncher.Common.Patching;
 using Serilog.Events;
 using MarshalUTF8Extensions;
+using XIVLauncher.Common.Game.Patch.PatchList;
 
 namespace NativeLibrary;
+
+[JsonSerializable(typeof(LoginResult))]
+[JsonSerializable(typeof(RepairProgress))]
+[JsonSerializable(typeof(DalamudConsoleOutput))]
+[JsonSerializable(typeof(PatchListEntry[]))]
+internal partial class ProgramJsonContext: JsonSerializerContext
+{
+}
 
 public class Program
 {
@@ -50,7 +61,7 @@ public class Program
                      .CreateLogger();
 
         Log.Information("========================================================");
-        Log.Information($"Starting a session({Marshal.PtrToStringUTF8(appName)!})");
+        Log.Information("Starting a session({PtrToStringUtf8})", Marshal.PtrToStringUTF8(appName)!);
 
         try
         {
@@ -180,7 +191,7 @@ public class Program
         }
         catch (AggregateException ex)
         {
-            string lastException = "";
+            var lastException = "";
 
             foreach (var iex in ex.InnerExceptions)
             {
@@ -247,7 +258,7 @@ public class Program
     {
         try
         {
-            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJson)!);
+            var loginResult = JsonSerializer.Deserialize(Marshal.PtrToStringUTF8(loginResultJson)!, ProgramJsonContext.Default.LoginResult);
             return MarshalUtf8.StringToHGlobal(LaunchServices.RepairGame(loginResult).Result);
         }
         catch (AggregateException ex)
@@ -270,12 +281,12 @@ public class Program
         try
         {
             var progress = new RepairProgress(LaunchServices.CurrentPatchVerifier);
-            return MarshalUtf8.StringToHGlobal(JsonConvert.SerializeObject(progress));
+            return MarshalUtf8.StringToHGlobal(JsonSerializer.Serialize(progress, ProgramJsonContext.Default.RepairProgress));
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Querying Repair Progress Info failed");
-            return MarshalUtf8.StringToHGlobal(JsonConvert.SerializeObject(new RepairProgress()));
+            return MarshalUtf8.StringToHGlobal(JsonSerializer.Serialize(new RepairProgress(), ProgramJsonContext.Default.RepairProgress));
         }
     }
 
@@ -298,14 +309,14 @@ public class Program
     {
         try
         {
-            var loginResult = JsonConvert.DeserializeObject<LoginResult>(Marshal.PtrToStringUTF8(loginResultJson)!);
+            var loginResult = JsonSerializer.Deserialize(Marshal.PtrToStringUTF8(loginResultJson)!, ProgramJsonContext.Default.LoginResult);
             var process = LaunchServices.StartGameAndAddon(loginResult, dalamudOk);
             var ret = new DalamudConsoleOutput
             {
                 Handle = (long)process.Handle,
                 Pid = process.Id
             };
-            return MarshalUtf8.StringToHGlobal(JsonConvert.SerializeObject(ret));
+            return MarshalUtf8.StringToHGlobal(JsonSerializer.Serialize(ret, ProgramJsonContext.Default.DalamudConsoleOutput));
         }
         catch (AggregateException ex)
         {

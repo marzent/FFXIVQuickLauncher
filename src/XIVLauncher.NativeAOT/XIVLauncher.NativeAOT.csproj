@@ -27,13 +27,11 @@
     <None Remove="mscorlib" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="7.0.0-preview.5.22301.12" />
-    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4-beta1.22217.1" />
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="7.0.0-preview1.22217.1" />
+    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="*-*" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="*-*" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="*-*" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="mscorlib">
-      <HintPath>..\..\..\..\..\..\Library\Frameworks\Mono.framework\Versions\6.12.0\lib\mono\4.7.2-api\mscorlib.dll</HintPath>
-    </Reference>
+    <RdXmlFile Include="rd.xml" />
   </ItemGroup>
 </Project>
