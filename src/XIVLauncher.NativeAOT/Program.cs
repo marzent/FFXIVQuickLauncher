@@ -1,5 +1,4 @@
 ﻿using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.JavaScript;
 using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
@@ -201,6 +200,11 @@ public class Program
 
             return MarshalUtf8.StringToHGlobal(lastException);
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error during login occured");
+            return MarshalUtf8.StringToHGlobal(ex.Message);
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getUserAgent")]
@@ -273,6 +277,11 @@ public class Program
 
             return MarshalUtf8.StringToHGlobal(lastException);
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error during game repair has occured");
+            return MarshalUtf8.StringToHGlobal(ex.Message);
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "queryRepairProgress")]
@@ -330,6 +339,11 @@ public class Program
 
             return MarshalUtf8.StringToHGlobal(lastException);
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error during game startup has occured");
+            return MarshalUtf8.StringToHGlobal(ex.Message);
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getExitCode")]
@@ -348,6 +362,11 @@ public class Program
 
             return -42069;
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occured getting the exit code of pid {pid}");
+            return -69;
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "writeLogLine")]
@@ -359,12 +378,19 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "runInPrefix")]
     public static void RunInPrefix(nint command, bool blocking, bool wineD3D)
     {
-        var commandStr = Marshal.PtrToStringUTF8(command)!;
-        var process = CompatibilityTools!.RunInPrefix(commandStr, wineD3D: wineD3D);
-
-        if (blocking)
+        try
         {
-            process.WaitForExit();
+            var commandStr = Marshal.PtrToStringUTF8(command)!;
+            var process = CompatibilityTools!.RunInPrefix(commandStr, wineD3D: wineD3D);
+
+            if (blocking)
+            {
+                process.WaitForExit();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An internal wine error occured");
         }
     }
 
