@@ -156,7 +156,7 @@ namespace XIVLauncher.Common.Dalamud
             using var client = new WebClient();
 
             var versionInfoJson = client.DownloadString(REMOTE_BASE + "release");
-            var remoteVersionInfo = JsonSerializer.Deserialize<DalamudVersionInfo>(versionInfoJson);
+            var remoteVersionInfo = JsonSerializer.Deserialize(versionInfoJson, DalamudJsonContext.Default.DalamudVersionInfo);
 
             if (Repository.Ffxiv.GetVer(gamePath) != remoteVersionInfo.SupportedGameVer)
                 return false;

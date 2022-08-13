@@ -20,13 +20,21 @@ namespace XIVLauncher.Common.Dalamud
 
         internal class AssetInfo
         {
+            [JsonPropertyName("version")]
             public int Version { get; set; }
-            public List<Asset> Assets { get; set; } = new();
+            
+            [JsonPropertyName("assets")]
+            public IReadOnlyList<Asset> Assets { get; set; }
 
             public class Asset
             {
+                [JsonPropertyName("url")]
                 public string Url { get; set; }
+                
+                [JsonPropertyName("fileName")]
                 public string FileName { get; set; }
+                
+                [JsonPropertyName("hash")]
                 public string Hash { get; set; }
             }
         }
@@ -153,7 +161,9 @@ namespace XIVLauncher.Common.Dalamud
                 Log.Error(ex, "[DASSET] Could not read asset.ver");
             }
 
-            var remoteVer = JsonSerializer.Deserialize(client.DownloadString(ASSET_STORE_URL), AssetInfoJsonContext.Default.AssetInfo);
+            var jsonString = client.DownloadString(ASSET_STORE_URL);
+
+            var remoteVer = JsonSerializer.Deserialize(jsonString, AssetInfoJsonContext.Default.AssetInfo);
 
             Log.Verbose("[DASSET] Ver check - local:{0} remote:{1}", localVer, remoteVer.Version);
 

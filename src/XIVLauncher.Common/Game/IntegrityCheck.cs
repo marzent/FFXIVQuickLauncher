@@ -6,7 +6,9 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Serilog;
+using XIVLauncher.Common.Game.Patch;
 using XIVLauncher.Common.Util;
 
 namespace XIVLauncher.Common.Game
@@ -81,8 +83,8 @@ namespace XIVLauncher.Common.Game
         {
             using (var client = new WebClient())
             {
-                return JsonSerializer.Deserialize<IntegrityCheckResult>(
-                    client.DownloadString(INTEGRITY_CHECK_BASE_URL + gameVersion + ".json"));
+                return JsonSerializer.Deserialize(client.DownloadString(INTEGRITY_CHECK_BASE_URL + gameVersion + ".json"), 
+                    IntegrityCheckResultJsonContext.Default.IntegrityCheckResult);
             }
         }
 
@@ -157,5 +159,10 @@ namespace XIVLauncher.Common.Game
                     CheckDirectory(dir, sha1, rootDirectory, ref results, progress, onlyIndex);
             }
         }
+    }
+    
+    [JsonSerializable(typeof(IntegrityCheck.IntegrityCheckResult))]
+    internal partial class IntegrityCheckResultJsonContext: JsonSerializerContext
+    {
     }
 }
