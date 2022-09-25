@@ -27,7 +27,7 @@ namespace NativeLibrary;
 [JsonSerializable(typeof(RepairProgress))]
 [JsonSerializable(typeof(DalamudConsoleOutput))]
 [JsonSerializable(typeof(PatchListEntry[]))]
-internal partial class ProgramJsonContext: JsonSerializerContext
+internal partial class ProgramJsonContext : JsonSerializerContext
 {
 }
 
@@ -263,7 +263,7 @@ public class Program
         try
         {
             var loginResult = JsonSerializer.Deserialize(Marshal.PtrToStringUTF8(loginResultJson)!, ProgramJsonContext.Default.LoginResult);
-            return MarshalUtf8.StringToHGlobal(LaunchServices.RepairGame(loginResult).Result);
+            return MarshalUtf8.StringToHGlobal(LaunchServices.RepairGame(loginResult!).Result);
         }
         catch (AggregateException ex)
         {
@@ -319,7 +319,7 @@ public class Program
         try
         {
             var loginResult = JsonSerializer.Deserialize(Marshal.PtrToStringUTF8(loginResultJson)!, ProgramJsonContext.Default.LoginResult);
-            var process = LaunchServices.StartGameAndAddon(loginResult, dalamudOk);
+            var process = LaunchServices.StartGameAndAddon(loginResult!, dalamudOk);
             var ret = new DalamudConsoleOutput
             {
                 Handle = (long)process.Handle,
@@ -357,14 +357,14 @@ public class Program
         {
             foreach (var iex in ex.InnerExceptions)
             {
-                Log.Error(iex, $"An error occured getting the exit code of pid {pid}");
+                Log.Error(iex, "An error occured getting the exit code of pid {Pid}", pid);
             }
 
             return -42069;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "An error occured getting the exit code of pid {pid}");
+            Log.Error(ex, "An error occured getting the exit code of pid {Pid}", pid);
             return -69;
         }
     }
