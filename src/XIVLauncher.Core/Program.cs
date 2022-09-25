@@ -11,6 +11,7 @@ using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.Game.Patch.Acquisition;
 using XIVLauncher.Common.PlatformAbstractions;
+using XIVLauncher.Common.Support;
 using XIVLauncher.Common.Windows;
 using XIVLauncher.Common.Unix;
 using XIVLauncher.Common.Unix.Compatibility;
@@ -61,15 +62,9 @@ class Program
         invalidationFrames = frames;
     }
 
-    private static void SetupLogging()
+    private static void SetupLogging(string[] args)
     {
-        Log.Logger = new LoggerConfiguration()
-                     .WriteTo.Async(a =>
-                         a.File(Path.Combine(storage.GetFolder("logs").FullName, "launcher.log")))
-                     .WriteTo.Console()
-                     .WriteTo.Debug()
-                     .MinimumLevel.Verbose()
-                     .CreateLogger();
+        LogInit.Setup(Path.Combine(storage.GetFolder("logs").FullName, "launcher.log"), args);
 
         Log.Information("========================================================");
         Log.Information("Starting a session(v{Version} - {Hash})", AppUtil.GetAssemblyVersion(), AppUtil.GetGitHash());
@@ -127,7 +122,7 @@ class Program
     private static void Main(string[] args)
     {
         storage = new Storage(APP_NAME);
-        SetupLogging();
+        SetupLogging(args);
         LoadConfig(storage);
 
         Secrets = GetSecretProvider(storage);

@@ -335,7 +335,9 @@ public class SqexLauncher : ILauncher
 
         request.Headers.AddWithoutValidation("X-Hash-Check", "enabled");
         request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);
-
+        
+        if (!forceBaseVersion)
+            EnsureVersionSanity(gamePath, this.oauthLoginResult.MaxExpansion);
         request.Content = new StringContent(GetVersionReport(gamePath, this.oauthLoginResult.MaxExpansion, forceBaseVersion));
 
         var resp = await this.client.SendAsync(request);
@@ -565,7 +567,7 @@ public class SqexLauncher : ILauncher
         var langCode = language.GetLangCode().Replace("-", "_");
         var formattedTime = GetLauncherFormattedTimeLong();
 
-        return $"https://launcher.finalfantasyxiv.com/v610/index.html?rc_lang={langCode}&time={formattedTime}";
+        return $"https://launcher.finalfantasyxiv.com/v620/index.html?rc_lang={langCode}&time={formattedTime}";
     }
 
     // Used to be used for frontier top, they now use the un-rounded long timestamp

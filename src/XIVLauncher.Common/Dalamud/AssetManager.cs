@@ -4,9 +4,9 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text.Json;
 using Serilog;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using XIVLauncher.Common.Util;
@@ -22,7 +22,7 @@ namespace XIVLauncher.Common.Dalamud
         {
             [JsonPropertyName("version")]
             public int Version { get; set; }
-            
+
             [JsonPropertyName("assets")]
             public IReadOnlyList<Asset> Assets { get; set; }
 
@@ -30,7 +30,7 @@ namespace XIVLauncher.Common.Dalamud
             {
                 [JsonPropertyName("url")]
                 public string Url { get; set; }
-                
+
                 [JsonPropertyName("fileName")]
                 public string FileName { get; set; }
                 
@@ -160,10 +160,11 @@ namespace XIVLauncher.Common.Dalamud
                 // This means it'll stay on 0, which will redownload all assets - good by me
                 Log.Error(ex, "[DASSET] Could not read asset.ver");
             }
-
+            
             var jsonString = client.DownloadString(ASSET_STORE_URL);
 
             var remoteVer = JsonSerializer.Deserialize(jsonString, AssetInfoJsonContext.Default.AssetInfo);
+
 
             Log.Verbose("[DASSET] Ver check - local:{0} remote:{1}", localVer, remoteVer.Version);
 

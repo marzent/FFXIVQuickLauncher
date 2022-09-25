@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Text.Json.Serialization;
 using Serilog;
 using XIVLauncher.Common.Game.Patch;
@@ -53,13 +53,14 @@ namespace XIVLauncher.Common.Game
                 return (CompareResult.ReferenceFetchFailure, null, null);
             }
 
-            var localIntegrity = await RunIntegrityCheckAsync(gamePath, progress, onlyIndex);
+            var localIntegrity = await RunIntegrityCheckAsync(gamePath, progress, onlyIndex).ConfigureAwait(false);
 
             var report = "";
             var failed = false;
+
             foreach (var hashEntry in remoteIntegrity.Hashes)
             {
-                if (onlyIndex && (!hashEntry.Key.EndsWith(".index") && !hashEntry.Key.EndsWith(".index2")))
+                if (onlyIndex && (!hashEntry.Key.EndsWith(".index", StringComparison.Ordinal) && !hashEntry.Key.EndsWith(".index2", StringComparison.Ordinal)))
                     continue;
 
                 if (localIntegrity.Hashes.Any(h => h.Key == hashEntry.Key))
@@ -89,14 +90,11 @@ namespace XIVLauncher.Common.Game
         }
 
         public static async Task<IntegrityCheckResult> RunIntegrityCheckAsync(DirectoryInfo gamePath,
-            IProgress<IntegrityCheckProgress> progress, bool onlyIndex = false)
+                                                                              IProgress<IntegrityCheckProgress> progress, bool onlyIndex = false)
         {
-#if DEBUG
-            Log.Debug($"Platform identified as {PlatformHelpers.GetPlatform()}");
-#endif
             var hashes = new Dictionary<string, string>();
 
-            using (var sha1 = new SHA1Managed())
+            using (var sha1 = SHA1.Create())
             {
                 CheckDirectory(gamePath, sha1, gamePath.FullName, ref hashes, progress, onlyIndex);
             }
@@ -108,28 +106,24 @@ namespace XIVLauncher.Common.Game
             };
         }
 
-        private static void CheckDirectory(DirectoryInfo directory, SHA1Managed sha1, string rootDirectory,
+        private static void CheckDirectory(DirectoryInfo directory, SHA1 sha1, string rootDirectory,
                                            ref Dictionary<string, string> results, IProgress<IntegrityCheckProgress> progress, bool onlyIndex = false)
         {
             foreach (var file in directory.GetFiles())
             {
                 var relativePath = file.FullName.Substring(rootDirectory.Length);
 
-
-#if DEBUG
-                Log.Debug($"{relativePath} swapping to {relativePath.Replace("/", "\\")}");
-#endif
                 // for unix compatibility with windows-generated integrity files.
                 relativePath = relativePath.Replace("/", "\\");
 
 
-                if (!relativePath.StartsWith("\\"))
+                if (!relativePath.StartsWith("\\", StringComparison.Ordinal))
                     relativePath = "\\" + relativePath;
 
-                if (!relativePath.StartsWith("\\game"))
+                if (!relativePath.StartsWith("\\game", StringComparison.Ordinal))
                     continue;
 
-                if (onlyIndex && (!relativePath.EndsWith(".index") && !relativePath.EndsWith(".index2")))
+                if (onlyIndex && (!relativePath.EndsWith(".index", StringComparison.Ordinal) && !relativePath.EndsWith(".index2", StringComparison.Ordinal)))
                     continue;
 
                 try
