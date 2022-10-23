@@ -15,6 +15,7 @@ using XIVLauncher.Common.Unix;
 using XIVLauncher.Common.Util;
 using XIVLauncher.Common.Windows;
 using XIVLauncher.NativeAOT.Configuration;
+using XIVLauncher.NativeAOT.Support;
 
 namespace XIVLauncher.NativeAOT;
 
@@ -272,7 +273,8 @@ public static class LaunchServices
         }
 
         var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
-            Program.Config.GamePath, Program.Storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay, false, false, false);
+            Program.Config.GamePath, Program.Storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay, false, false,
+            false, Troubleshooting.GetTroubleshootingJson());
 
         try
         {
@@ -318,7 +320,8 @@ public static class LaunchServices
         }
 
         var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
-            Program.Config.GamePath, Program.Storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay, false, false, false);
+            Program.Config.GamePath, Program.Storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay, false, false, 
+            false, Troubleshooting.GetTroubleshootingJson());
 
         IGameRunner runner;
 

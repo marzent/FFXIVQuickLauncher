@@ -13,10 +13,8 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <LangVersion>10.0</LangVersion>
     <WarningLevel>4</WarningLevel>
-    <DebuggerSupport>false</DebuggerSupport>
     <InvariantGlobalization>true</InvariantGlobalization>
     <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
-    <UseSystemResourceKeys>true</UseSystemResourceKeys>
     <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
   </PropertyGroup>
   <ItemGroup>
@@ -31,9 +29,10 @@
     <None Remove="mscorlib" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="7.0.0-preview.6.22324.4" />
+    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="7.0.0-rc.2.22472.3" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4-beta1.22362.3" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="7.0.0-preview1.22362.3" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="7.0.0-preview1.22464.1" />
   </ItemGroup>
   <ItemGroup>
     <RdXmlFile Include="rd.xml" />

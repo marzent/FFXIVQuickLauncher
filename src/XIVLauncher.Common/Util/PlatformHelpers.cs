@@ -10,7 +10,7 @@ namespace XIVLauncher.Common.Util;
 
 public static class PlatformHelpers
 {
-    public static bool IsMac { get; set; } = false; 
+    public static bool IsMac { get; set; } = false;
 
     public static Platform GetPlatform()
     {

@@ -33,6 +33,7 @@ internal partial class ProgramJsonContext : JsonSerializerContext
 
 public class Program
 {
+    public static String? AppName;
     public static Storage? Storage;
     public static LauncherConfig? Config { get; private set; }
     public static CommonSettings? CommonSettings => CommonSettings.Instance;
@@ -49,7 +50,8 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "initXL")]
     public static void Init(nint appName, nint storagePath, bool verboseLogging)
     {
-        Storage = new Storage(Marshal.PtrToStringUTF8(appName)!, Marshal.PtrToStringUTF8(storagePath)!);
+        AppName = Marshal.PtrToStringUTF8(appName)!;
+        Storage = new Storage(AppName, Marshal.PtrToStringUTF8(storagePath)!);
 
         var logLevel = verboseLogging ? LogEventLevel.Verbose : LogEventLevel.Information;
         Log.Logger = new LoggerConfiguration()
@@ -60,7 +62,7 @@ public class Program
                      .CreateLogger();
 
         Log.Information("========================================================");
-        Log.Information("Starting a session({PtrToStringUtf8})", Marshal.PtrToStringUTF8(appName)!);
+        Log.Information("Starting a session({AppName})", AppName);
 
         try
         {
