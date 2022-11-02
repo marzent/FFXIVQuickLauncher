@@ -13,6 +13,7 @@ using static XIVLauncher.Common.Unix.Compatibility.Dxvk;
 using XIVLauncher.Common.Game.Launcher;
 using XIVLauncher.PlatformAbstractions;
 using XIVLauncher.NativeAOT;
+using XIVLauncher.NativeAOT.Support;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using XIVLauncher.Common.Game;
@@ -63,6 +64,7 @@ public class Program
 
         Log.Information("========================================================");
         Log.Information("Starting a session({AppName})", AppName);
+        Task.Run(Troubleshooting.LogTroubleshooting);
 
         try
         {
@@ -93,6 +95,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "Steam couldn't load");
+            Troubleshooting.LogException(ex, "Steam couldn't load");
         }
 
         var dalamudLoadInfo = new DalamudOverlayInfoProxy();
@@ -134,6 +137,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "Couldn't ensure Prefix");
+            Troubleshooting.LogException(ex, "Couldn't ensure Prefix");
         }
     }
 
@@ -197,6 +201,7 @@ public class Program
             foreach (var iex in ex.InnerExceptions)
             {
                 Log.Error(iex, "An error during login occured");
+                Troubleshooting.LogException(ex, "An error during login occured");
                 lastException = iex.Message;
             }
 
@@ -205,6 +210,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "An error during login occured");
+            Troubleshooting.LogException(ex, "An error during login occured");
             return MarshalUtf8.StringToHGlobal(ex.Message);
         }
     }
@@ -239,6 +245,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "Patch installation failed");
+            Troubleshooting.LogException(ex, "Patch installation failed");
             return MarshalUtf8.StringToHGlobal(ex.Message);
         }
     }
@@ -255,6 +262,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "Patch verification failed");
+            Troubleshooting.LogException(ex, "Patch verification failed");
             return false;
         }
     }
@@ -274,6 +282,7 @@ public class Program
             foreach (var iex in ex.InnerExceptions)
             {
                 Log.Error(iex, "An error during game repair has occured");
+                Troubleshooting.LogException(ex, "An error during game repair has occured");
                 lastException = iex.Message;
             }
 
@@ -282,6 +291,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "An error during game repair has occured");
+            Troubleshooting.LogException(ex, "An error during game repair has occured");
             return MarshalUtf8.StringToHGlobal(ex.Message);
         }
     }
@@ -297,6 +307,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "Querying Repair Progress Info failed");
+            Troubleshooting.LogException(ex, "Querying Repair Progress Info failed");
             return MarshalUtf8.StringToHGlobal(JsonSerializer.Serialize(new RepairProgress(), ProgramJsonContext.Default.RepairProgress));
         }
     }
@@ -311,6 +322,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "An error getting the dalamud state has occured");
+            Troubleshooting.LogException(ex, "An error getting the dalamud state has occured");
             return false;
         }
     }
@@ -331,20 +343,19 @@ public class Program
         }
         catch (AggregateException ex)
         {
-            string lastException = "";
-
             foreach (var iex in ex.InnerExceptions)
             {
                 Log.Error(iex, "An error during game startup has occured");
-                lastException = iex.Message;
+                Troubleshooting.LogException(ex, "An error during game startup has occured");
             }
 
-            return MarshalUtf8.StringToHGlobal(lastException);
+            return MarshalUtf8.StringToHGlobal("An error during game startup has occured");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "An error during game startup has occured");
-            return MarshalUtf8.StringToHGlobal(ex.Message);
+            Troubleshooting.LogException(ex, "An error during game startup has occured");
+            return MarshalUtf8.StringToHGlobal("An error during game startup has occured");
         }
     }
 
@@ -360,6 +371,7 @@ public class Program
             foreach (var iex in ex.InnerExceptions)
             {
                 Log.Error(iex, "An error occured getting the exit code of pid {Pid}", pid);
+                Troubleshooting.LogException(iex, "An error occured getting the exit code");
             }
 
             return -42069;
@@ -367,6 +379,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "An error occured getting the exit code of pid {Pid}", pid);
+            Troubleshooting.LogException(ex, "An error occured getting the exit code");
             return -69;
         }
     }
@@ -393,6 +406,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "An internal wine error occured");
+            Troubleshooting.LogException(ex, "An internal wine error occured");
         }
     }
 
@@ -406,6 +420,7 @@ public class Program
         catch (Exception ex)
         {
             Log.Error(ex, "An error occured adding the registry key");
+            Troubleshooting.LogException(ex, "An error occured adding the registry key");
         } 
     }
 

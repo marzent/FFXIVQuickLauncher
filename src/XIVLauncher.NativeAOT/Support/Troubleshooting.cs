@@ -71,8 +71,13 @@ namespace XIVLauncher.NativeAOT.Support
             }
         }
 
+        private static string? cachedTroubleshootingJson;
+
         internal static string GetTroubleshootingJson()
         {
+            if (cachedTroubleshootingJson is not null)
+                return cachedTroubleshootingJson;
+
             var gamePath = Program.Config!.GamePath!;
 
             var integrity = TroubleshootingPayload.IndexIntegrityResult.Success;
@@ -140,7 +145,8 @@ namespace XIVLauncher.NativeAOT.Support
                 IndexIntegrity = integrity
             };
 
-            return JsonSerializer.Serialize(payload, SupportJsonContext.Default.TroubleshootingPayload);
+            cachedTroubleshootingJson = JsonSerializer.Serialize(payload, SupportJsonContext.Default.TroubleshootingPayload);
+            return cachedTroubleshootingJson;
         }
 
         internal class ExceptionPayload
