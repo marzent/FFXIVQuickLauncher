@@ -556,9 +556,10 @@ namespace XIVLauncher.Windows.ViewModel
                     {
                         if (!await RepairGame(loginResult).ConfigureAwait(false))
                             return false;
-
+                        
                         loginResult.State = LoginState.Ok;
                         action = AfterLoginAction.Start;
+
                     }
                     else
                     {
@@ -601,9 +602,10 @@ namespace XIVLauncher.Windows.ViewModel
                     Log.Error("patchSuccess != true");
                     return false;
                 }
-
+                
                 loginResult.State = LoginState.Ok;
                 action = AfterLoginAction.Start;
+
             }
 
             if (action == AfterLoginAction.UpdateOnly)

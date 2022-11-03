@@ -16,10 +16,6 @@ public static class PlatformHelpers
     {
         if (IsMac)
             return Platform.Mac;
-
-        if (EnvironmentSettings.IsWine)
-            return Platform.Win32OnLinux;
-
         return Platform.Win32;
     }
 
