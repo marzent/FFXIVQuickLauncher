@@ -33,6 +33,10 @@ public class LauncherConfig
 
     public bool? IsFt { get; set; }
 
+    public bool? IsAutoLogin { get; set; }
+
+    public DpiAwareness? DpiAwareness { get; set; }
+
     #region Patching
 
     public DirectoryInfo? PatchPath { get; set; }

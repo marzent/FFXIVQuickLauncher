@@ -121,7 +121,7 @@ namespace XIVLauncher.NativeAOT.Support
             {
                 When = DateTime.Now,
                 IsDx11 = Program.Config.IsDx11.GetValueOrDefault(),
-                IsAutoLogin = false,
+                IsAutoLogin = Program.Config.IsAutoLogin.GetValueOrDefault(),
                 IsUidCache = Program.Config.IsUidCacheEnabled.GetValueOrDefault(),
                 DalamudEnabled = Program.Config.DalamudEnabled.GetValueOrDefault(),
                 DalamudLoadMethod = Program.Config.DalamudLoadMethod.GetValueOrDefault(),
@@ -130,7 +130,7 @@ namespace XIVLauncher.NativeAOT.Support
                 LauncherVersion = Program.AppName!,
                 LauncherHash = "<unavailable>",
                 Official = true,
-                DpiAwareness = DpiAwareness.Aware,
+                DpiAwareness = Program.Config.DpiAwareness.GetValueOrDefault(),
                 Platform = PlatformHelpers.GetPlatform(),
 
                 ObservedGameVersion = ffxivVer,

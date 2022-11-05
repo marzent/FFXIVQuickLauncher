@@ -1,4 +1,5 @@
-﻿using XIVLauncher.Common;
+﻿using NativeLibrary;
+using XIVLauncher.Common;
 using XIVLauncher.Common.Game.Patch.Acquisition;
 using XIVLauncher.Common.PlatformAbstractions;
 
@@ -10,7 +11,7 @@ public class CommonSettings : ISettings
 
     public CommonSettings()
     {
-        this.config = NativeLibrary.Program.Config!;
+        config = Program.Config!;
     }
 
     private static CommonSettings? instance;
@@ -24,12 +25,12 @@ public class CommonSettings : ISettings
         }
     }
 
-    public string AcceptLanguage => this.config.AcceptLanguage!;
-    public ClientLanguage? ClientLanguage => this.config.ClientLanguage;
-    public bool? KeepPatches => this.config.KeepPatches;
-    public DirectoryInfo PatchPath => this.config.PatchPath!;
-    public DirectoryInfo GamePath => this.config.GamePath!;
+    public string AcceptLanguage => config.AcceptLanguage!;
+    public ClientLanguage? ClientLanguage => config.ClientLanguage;
+    public bool? KeepPatches => config.KeepPatches;
+    public DirectoryInfo PatchPath => config.PatchPath!;
+    public DirectoryInfo GamePath => config.GamePath!;
     public AcquisitionMethod? PatchAcquisitionMethod => AcquisitionMethod.NetDownloader;
-    public long SpeedLimitBytes => this.config.PatchSpeedLimit;
-    public int DalamudInjectionDelayMs => this.config.DalamudLoadDelay;
+    public long SpeedLimitBytes => config.PatchSpeedLimit;
+    public int DalamudInjectionDelayMs => config.DalamudLoadDelay;
 }
