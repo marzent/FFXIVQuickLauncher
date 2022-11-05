@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.Arm;
 using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
@@ -68,19 +69,12 @@ public class Program
 
         try
         {
-            switch (Environment.OSVersion.Platform)
+            Steam = Environment.OSVersion.Platform switch
             {
-                case PlatformID.Win32NT:
-                    Steam = new WindowsSteam();
-                    break;
-
-                case PlatformID.Unix:
-                    Steam = new UnixSteam();
-                    break;
-
-                default:
-                    throw new PlatformNotSupportedException();
-            }
+                PlatformID.Win32NT => new WindowsSteam(),
+                PlatformID.Unix => new UnixSteam(),
+                _ => throw new PlatformNotSupportedException()
+            };
 
             try
             {
@@ -149,7 +143,8 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "loadConfig")]
-    public static void LoadConfig(nint acceptLanguage, nint gamePath, nint gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, byte license, nint patchPath, byte patchAcquisitionMethod, long patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay)
+    public static void LoadConfig(nint acceptLanguage, nint gamePath, nint gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, byte license, nint patchPath,
+                                  byte patchAcquisitionMethod, long patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay, bool isAutoLogin, bool isHiDpi)
     {
         Config = new LauncherConfig
         {
@@ -161,8 +156,10 @@ public class Program
 
             IsDx11 = isDx11,
             IsEncryptArgs = isEncryptArgs,
-            License = (XIVLauncher.NativeAOT.Configuration.License)license,
+            License = (License)license,
             IsFt = isFt,
+            IsAutoLogin = isAutoLogin,
+            DpiAwareness = isHiDpi ? DpiAwareness.Aware : DpiAwareness.Unaware,
 
             PatchPath = new DirectoryInfo(Marshal.PtrToStringUTF8(patchPath)!),
             PatchAcquisitionMethod = (AcquisitionMethod)patchAcquisitionMethod,
@@ -427,13 +424,46 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "getProcessIds")]
     public static nint GetProcessIds(nint executableName)
     {
-        var pids = CompatibilityTools!.GetProcessIds(Marshal.PtrToStringUTF8(executableName)!);
-        return MarshalUtf8.StringToHGlobal(string.Join(" ", pids));
+        try
+        {
+            var pids = CompatibilityTools!.GetProcessIds(Marshal.PtrToStringUTF8(executableName)!);
+            return MarshalUtf8.StringToHGlobal(string.Join(" ", pids));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occured getting the process ids");
+            Troubleshooting.LogException(ex, "An error occured getting the process ids");
+            return MarshalUtf8.StringToHGlobal("");
+        } 
     }
 
     [UnmanagedCallersOnly(EntryPoint = "killWine")]
     public static void KillWine()
     {
-        CompatibilityTools!.Kill();
+        try
+        {
+            CompatibilityTools!.Kill();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occured terminating wine");
+            Troubleshooting.LogException(ex, "An error occured terminating wine");
+        }
+    }
+    
+    [UnmanagedCallersOnly(EntryPoint = "checkRosetta")]
+    public static bool CheckRosetta()
+    {
+        try
+        {
+            var proc = CompatibilityTools!.RunInPrefix("--version")!;
+            proc.WaitForExit();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Rosetta does not appear to be installed");
+            return false;
+        }
     }
 }
