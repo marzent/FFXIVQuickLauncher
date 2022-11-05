@@ -123,7 +123,7 @@ namespace XIVLauncher.NativeAOT.Support
                 IsDx11 = Program.Config.IsDx11.GetValueOrDefault(),
                 IsAutoLogin = Program.Config.IsAutoLogin.GetValueOrDefault(),
                 IsUidCache = Program.Config.IsUidCacheEnabled.GetValueOrDefault(),
-                DalamudEnabled = Program.Config.DalamudEnabled.GetValueOrDefault(),
+                DalamudEnabled = Program.Config.DalamudLoadMethod.GetValueOrDefault() != DalamudLoadMethod.ACLonly,
                 DalamudLoadMethod = Program.Config.DalamudLoadMethod.GetValueOrDefault(),
                 DalamudInjectionDelay = Program.Config.DalamudLoadDelay,
                 EncryptArguments = Program.Config.IsEncryptArgs.GetValueOrDefault(true),
