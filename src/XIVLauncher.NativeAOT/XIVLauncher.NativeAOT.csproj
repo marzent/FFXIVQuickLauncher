@@ -8,6 +8,10 @@
     <NativeLib>Shared</NativeLib>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(BuildForArm64)'=='true'">
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <LangVersion>10.0</LangVersion>
     <WarningLevel>4</WarningLevel>
