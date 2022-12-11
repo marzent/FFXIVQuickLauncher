@@ -53,10 +53,10 @@ namespace XIVLauncher.Common.Game
 
     public partial class Headlines
     {
-        public static async Task<Headlines> Get(ILauncher game, ClientLanguage language)
+        public static async Task<Headlines> Get(ILauncher game, ClientLanguage language, bool forceNa = false)
         {
             var unixTimestamp = ApiHelpers.GetUnixMillis();
-            var langCode = language.GetLangCode();
+            var langCode = language.GetLangCode(forceNa);
             var url = $"https://frontier.ffxiv.com/news/headline.json?lang={langCode}&media=pcapp&_={unixTimestamp}";
 
             var json = Encoding.UTF8.GetString(await game.DownloadAsLauncher(url, language, "application/json, text/plain, */*").ConfigureAwait(false));

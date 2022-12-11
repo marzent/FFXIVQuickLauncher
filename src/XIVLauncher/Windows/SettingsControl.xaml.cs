@@ -29,6 +29,7 @@ namespace XIVLauncher.Windows
     public partial class SettingsControl
     {
         public event EventHandler SettingsDismissed;
+        public event EventHandler CloseMainWindowGracefully;
 
         private SettingsControlViewModel ViewModel => DataContext as SettingsControlViewModel;
 
@@ -67,12 +68,10 @@ namespace XIVLauncher.Windows
             LauncherLanguageComboBox.SelectedIndex = (int) App.Settings.LauncherLanguage.GetValueOrDefault(LauncherLanguage.English);
             LauncherLanguageNoticeTextBlock.Visibility = Visibility.Hidden;
             AddonListView.ItemsSource = App.Settings.AddonList ??= new List<AddonEntry>();
-            UidCacheCheckBox.IsChecked = App.Settings.UniqueIdCacheEnabled;
-            ExitLauncherAfterGameExitCheckbox.IsChecked = App.Settings.ExitLauncherAfterGameExit ?? true;
-            TreatNonZeroExitCodeAsFailureCheckbox.IsChecked = App.Settings.TreatNonZeroExitCodeAsFailure ?? false;
             AskBeforePatchingCheckBox.IsChecked = App.Settings.AskBeforePatchInstall;
             KeepPatchesCheckBox.IsChecked = App.Settings.KeepPatches;
             PatchAcquisitionComboBox.SelectedIndex = (int) App.Settings.PatchAcquisitionMethod.GetValueOrDefault(AcquisitionMethod.Aria);
+            AutoStartSteamCheckBox.IsChecked = App.Settings.AutoStartSteam;
 
             ReloadPluginList();
 
@@ -123,12 +122,10 @@ namespace XIVLauncher.Windows
             App.Settings.LauncherLanguage = (LauncherLanguage)LauncherLanguageComboBox.SelectedIndex;
 
             App.Settings.AddonList = (List<AddonEntry>)AddonListView.ItemsSource;
-            App.Settings.UniqueIdCacheEnabled = UidCacheCheckBox.IsChecked == true;
-            App.Settings.ExitLauncherAfterGameExit = ExitLauncherAfterGameExitCheckbox.IsChecked == true;
-            App.Settings.TreatNonZeroExitCodeAsFailure = TreatNonZeroExitCodeAsFailureCheckbox.IsChecked == true;
             App.Settings.AskBeforePatchInstall = AskBeforePatchingCheckBox.IsChecked == true;
             App.Settings.KeepPatches = KeepPatchesCheckBox.IsChecked == true;
             App.Settings.PatchAcquisitionMethod = (AcquisitionMethod) PatchAcquisitionComboBox.SelectedIndex;
+            App.Settings.AutoStartSteam = AutoStartSteamCheckBox.IsChecked == true;
 
             App.Settings.InGameAddonEnabled = EnableHooksCheckBox.IsChecked == true;
 
@@ -157,7 +154,7 @@ namespace XIVLauncher.Windows
 
         private void GitHubButton_OnClick(object sender, RoutedEventArgs e)
         {
-            Process.Start("https://github.com/goaaats/FFXIVQuickLauncher");
+            PlatformHelpers.OpenBrowser("https://github.com/goaaats/FFXIVQuickLauncher");
         }
 
         private void BackupToolButton_OnClick(object sender, RoutedEventArgs e)
@@ -246,11 +243,6 @@ namespace XIVLauncher.Windows
             }
         }
 
-        private void ResetCacheButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            App.UniqueIdCache.Reset();
-        }
-
         private void RunIntegrityCheck_OnClick(object s, RoutedEventArgs e)
         {
             var window = new IntegrityCheckProgressWindow();
@@ -315,7 +307,7 @@ namespace XIVLauncher.Windows
 
         private void Dx9RadioButton_OnUnchecked(object sender, RoutedEventArgs e)
         {
-            Dx9DisclaimerTextBlock.Visibility = Visibility.Hidden;
+            Dx9DisclaimerTextBlock.Visibility = Visibility.Collapsed;
         }
 
         private void LauncherLanguageCombo_SelectionChanged(object sender, RoutedEventArgs e)
@@ -506,7 +498,7 @@ namespace XIVLauncher.Windows
 
         private void OpenI18nLabel_OnClick(object sender, MouseButtonEventArgs e)
         {
-            Process.Start("https://crowdin.com/project/ffxivquicklauncher");
+            PlatformHelpers.OpenBrowser("https://crowdin.com/project/ffxivquicklauncher");
         }
 
         private void GamePathEntry_OnTextChanged(object sender, TextChangedEventArgs e)
@@ -579,6 +571,28 @@ namespace XIVLauncher.Windows
             var cw = new ChangelogWindow(EnvironmentSettings.IsPreRelease);
             cw.UpdateVersion(AppUtil.GetAssemblyVersion());
             cw.ShowDialog();
+        }
+
+        private void LearnMoreButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            PlatformHelpers.OpenBrowser("https://goatcorp.github.io/faq/mobile_otp");
+        }
+
+        private void IsFreeTrialCheckbox_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (App.Steam.AsyncStartTask != null)
+            {
+                CustomMessageBox.Show(Loc.Localize("SteamFtToggleAutoStartWarning", "To apply this setting, XIVLauncher needs to restart.\nPlease reopen XIVLauncher."),
+                    "XIVLauncher", image: MessageBoxImage.Information, showDiscordLink: false, showHelpLinks: false);
+                App.Settings.IsFt = IsFreeTrialCheckbox.IsChecked == true;
+                CloseMainWindowGracefully?.Invoke(this, null);
+            }
+        }
+
+        private void OpenAdvancedSettings_OnClick(object sender, RoutedEventArgs e)
+        {
+            var asw = new AdvancedSettingsWindow();
+            asw.ShowDialog();
         }
     }
 }

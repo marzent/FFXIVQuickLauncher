@@ -26,7 +26,6 @@ using XIVLauncher.Common.Encryption;
 using XIVLauncher.Common.Game.Exceptions;
 using XIVLauncher.Common.PlatformAbstractions;
 using XIVLauncher.Common.Util;
-using System.Diagnostics;
 
 #nullable enable
 
@@ -39,11 +38,16 @@ public class SqexLauncher : ILauncher
     private readonly HttpClient client;
     private OauthLoginResult? oauthLoginResult;
     private string? uniqueId;
+    
+    private readonly string frontierUrlTemplate;
+    private const string FALLBACK_FRONTIER_URL_TEMPLATE = "https://launcher.finalfantasyxiv.com/v620/index.html?rc_lang={0}&time={1}";
 
-    public SqexLauncher(IUniqueIdCache uniqueIdCache, ISettings? settings)
+    public SqexLauncher(IUniqueIdCache uniqueIdCache, ISettings? settings, string? frontierUrl = null)
     {
         this.uniqueIdCache = uniqueIdCache;
         this.settings = settings;
+        frontierUrlTemplate =
+            string.IsNullOrWhiteSpace(frontierUrl) ? FALLBACK_FRONTIER_URL_TEMPLATE : frontierUrl;
 
         ServicePointManager.Expect100Continue = false;
 
@@ -65,8 +69,9 @@ public class SqexLauncher : ILauncher
         };
 #endif
 
-        this.client = new HttpClient(handler);
+        client = new HttpClient(handler);
     }
+
 
     // The user agent for frontier pages. {0} has to be replaced by a unique computer id and its checksum
     private const string USER_AGENT_TEMPLATE = "SQEXAuthor/2.0.0(Windows 6.2; ja-jp; {0})";
@@ -562,12 +567,12 @@ public class SqexLauncher : ILauncher
         return await resp.Content.ReadAsByteArrayAsync();
     }
 
-    private static string GenerateFrontierReferer(ClientLanguage language)
+    private string GenerateFrontierReferer(ClientLanguage language)
     {
         var langCode = language.GetLangCode().Replace("-", "_");
         var formattedTime = GetLauncherFormattedTimeLong();
 
-        return $"https://launcher.finalfantasyxiv.com/v620/index.html?rc_lang={langCode}&time={formattedTime}";
+        return string.Format(this.frontierUrlTemplate, langCode, formattedTime);
     }
 
     // Used to be used for frontier top, they now use the un-rounded long timestamp

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -22,6 +23,7 @@ using XIVLauncher.Common.Game.Patch.Acquisition;
 using XIVLauncher.Common.Util;
 using XIVLauncher.Support;
 using XIVLauncher.Windows.ViewModel;
+using XIVLauncher.Xaml;
 using Timer = System.Timers.Timer;
 
 namespace XIVLauncher.Windows
@@ -35,6 +37,7 @@ namespace XIVLauncher.Windows
         private Headlines _headlines;
         private BitmapImage[] _bannerBitmaps;
         private int _currentBannerIndex;
+        private bool _everShown = false;
 
         class BannerDotInfo
         {
@@ -118,7 +121,8 @@ namespace XIVLauncher.Windows
             {
                 _bannerChangeTimer?.Stop();
 
-                _headlines = await Headlines.Get(Launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
+
+                _headlines = await Headlines.Get(_launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.ForceNorthAmerica.GetValueOrDefault(false)).ConfigureAwait(false);
 
                 _bannerBitmaps = new BitmapImage[_headlines.Banner.Length];
                 _bannerDotList = new();
@@ -182,7 +186,7 @@ namespace XIVLauncher.Windows
             }
         }
 
-        private const int CURRENT_VERSION_LEVEL = 1;
+        private const int CURRENT_VERSION_LEVEL = 2;
 
         private void SetDefaults()
         {
@@ -209,6 +213,10 @@ namespace XIVLauncher.Windows
 
             App.Settings.IsFt ??= false;
 
+            App.Settings.AutoStartSteam ??= false;
+
+            App.Settings.ForceNorthAmerica ??= false;
+
             var versionLevel = App.Settings.VersionUpgradeLevel.GetValueOrDefault(0);
 
             while (versionLevel < CURRENT_VERSION_LEVEL)
@@ -234,6 +242,11 @@ namespace XIVLauncher.Windows
                             Log.Error(ex, "Could not check for RTSS/SpecialK");
                         }
 
+                        break;
+
+                    // 5.12.2022: Bad main window placement when using auto-launch
+                    case 1:
+                        App.Settings.MainWindowPlacement = null;
                         break;
 
                     default:
@@ -338,6 +351,8 @@ namespace XIVLauncher.Windows
 
             Show();
             Activate();
+
+            _everShown = true;
         }
 
         private void BannerCard_MouseUp(object sender, MouseButtonEventArgs e)
@@ -583,6 +598,43 @@ namespace XIVLauncher.Windows
         private void RadioButton_MouseLeave(object sender, MouseEventArgs e)
         {
             _bannerChangeTimer.Start();
+        }
+
+        private void SettingsControl_OnCloseMainWindowGracefully(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void MainWindow_OnClosing(object sender, CancelEventArgs e)
+        {
+            if (!_everShown)
+                return;
+
+            try
+            {
+                PreserveWindowPosition.SaveWindowPosition(this);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Couldn't save window position");
+            }
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            try
+            {
+                PreserveWindowPosition.RestorePosition(this);
+
+                // Restore the size of the window to what we expect it to be
+                // There's no better way to do it that doesn't make me wanna off myself
+                Width = 845;
+                Height = 376;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Couldn't restore window position");
+            }
         }
     }
 }

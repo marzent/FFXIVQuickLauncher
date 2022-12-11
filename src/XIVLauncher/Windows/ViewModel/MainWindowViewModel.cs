@@ -69,7 +69,7 @@ namespace XIVLauncher.Windows.ViewModel
             LoginNoDalamudCommand = new SyncCommand(GetLoginFunc(AfterLoginAction.StartWithoutDalamud), () => !IsLoggingIn);
             LoginNoThirdCommand = new SyncCommand(GetLoginFunc(AfterLoginAction.StartWithoutThird), () => !IsLoggingIn);
             LoginRepairCommand = new SyncCommand(GetLoginFunc(AfterLoginAction.Repair), () => !IsLoggingIn);
-
+            
             // Initialise as a regular SqexLauncher to start
             Launcher = new SqexLauncher(App.UniqueIdCache, CommonSettings.Instance);
         }
@@ -94,7 +94,7 @@ namespace XIVLauncher.Windows.ViewModel
         {
             return p =>
             {
-                if (this.IsLoggingIn)
+                if (IsLoggingIn)
                     return;
 
                 if (IsAutoLogin && App.Settings.HasShownAutoLaunchDisclaimer.GetValueOrDefault(false) == false)
@@ -392,7 +392,20 @@ namespace XIVLauncher.Windows.ViewModel
                 var enableUidCache = App.Settings.UniqueIdCacheEnabled;
                 var gamePath = App.Settings.GamePath;
 
+<<<<<<< HEAD
                 EnsureLauncherAffinity(isSteam);
+=======
+                try
+                {
+                    if (App.Steam.AsyncStartTask != null)
+                        await App.Steam.AsyncStartTask.ConfigureAwait(false);
+                }
+                catch (WindowsSteam.SteamStartupTimedOutException)
+                {
+                    Log.Warning("Automatic Steam startup timed out. Will try normally.");
+                }
+
+>>>>>>> main
                 if (action == AfterLoginAction.Repair)
                     return await this.Launcher.Login(username, password, otp, false, gamePath, true, App.Settings.IsFt.GetValueOrDefault(false)).ConfigureAwait(false);
                 else
@@ -428,7 +441,7 @@ namespace XIVLauncher.Windows.ViewModel
                 else if (ex is SteamException)
                 {
                     msgbox.WithTextFormatted(Loc.Localize("LoginSteamIssue",
-                        "Could not authenticate with Steam. Please make sure that Steam is running and that you are logged in with the account tied to your SE ID.\nIf you play using the Free Trial, please check the \"Free Trial mode\" checkbox in the \"About\" tab of the XIVLauncher settings.\n\nContext: {0}"), ex.Message);
+                        "Could not authenticate with Steam. Please make sure that Steam is running and that you are logged in with the account tied to your SE ID.\nIf you play using the Free Trial, please check the \"Using Free Trial account\" checkbox in the \"Game Settings\" tab of the XIVLauncher settings.\n\nContext: {0}"), ex.Message);
 
                     if (ex.InnerException != null)
                         msgbox.WithAppendDescription(ex.InnerException.ToString());
@@ -1088,16 +1101,22 @@ namespace XIVLauncher.Windows.ViewModel
 
                 if (showEnsurementWarning)
                 {
-                    var ensurementErrorMessage = Loc.Localize("DalamudEnsurementError",
-                        "Could not download necessary data files to use Dalamud and plugins.\nThis is likely a problem with your internet connection - the game will start, but you will not be able to use plugins.");
+                    var errorNews = await Updates.GetErrorNews().ConfigureAwait(false);
 
-                    CustomMessageBox.Builder
-                                    .NewFrom(ensurementErrorMessage)
-                                    .WithImage(MessageBoxImage.Warning)
-                                    .WithButtons(MessageBoxButton.OK)
-                                    .WithShowHelpLinks()
-                                    .WithParentWindow(_window)
-                                    .Show();
+                    // If we have valid error news, let's not show this because it probably doesn't matter
+                    if (errorNews != null)
+                    {
+                        var ensurementErrorMessage = Loc.Localize("DalamudEnsurementError",
+                            "Could not download necessary data files to use Dalamud and plugins.\nThis could be a problem with your internet connection, or might be caused by your antivirus application blocking necessary files. The game will start, but you will not be able to use plugins.\n\nPlease check our FAQ for more information.");
+
+                        CustomMessageBox.Builder
+                                        .NewFrom(ensurementErrorMessage)
+                                        .WithImage(MessageBoxImage.Warning)
+                                        .WithButtons(MessageBoxButton.OK)
+                                        .WithShowHelpLinks()
+                                        .WithParentWindow(_window)
+                                        .Show();
+                    }
                 }
             }
 
