@@ -1,5 +1,4 @@
 ﻿using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.Arm;
 using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
@@ -35,7 +34,7 @@ internal partial class ProgramJsonContext : JsonSerializerContext
 
 public class Program
 {
-    public static String? AppName;
+    public static string? AppName;
     public static Storage? Storage;
     public static LauncherConfig? Config { get; private set; }
     public static CommonSettings? CommonSettings => CommonSettings.Instance;
@@ -274,7 +273,7 @@ public class Program
         }
         catch (AggregateException ex)
         {
-            string lastException = "";
+            var lastException = "";
 
             foreach (var iex in ex.InnerExceptions)
             {
@@ -418,7 +417,7 @@ public class Program
         {
             Log.Error(ex, "An error occured adding the registry key");
             Troubleshooting.LogException(ex, "An error occured adding the registry key");
-        } 
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getProcessIds")]
@@ -434,7 +433,7 @@ public class Program
             Log.Error(ex, "An error occured getting the process ids");
             Troubleshooting.LogException(ex, "An error occured getting the process ids");
             return MarshalUtf8.StringToHGlobal("");
-        } 
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "killWine")]
@@ -450,7 +449,7 @@ public class Program
             Troubleshooting.LogException(ex, "An error occured terminating wine");
         }
     }
-    
+
     [UnmanagedCallersOnly(EntryPoint = "checkRosetta")]
     public static bool CheckRosetta()
     {

@@ -65,6 +65,9 @@ public static class LaunchServices
 
                 Program.Launcher = new SteamSqexLauncher(Program.Steam, Program.UniqueIdCache!, Program.CommonSettings);
                 return;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(license), license, null);
         }
     }
 
@@ -154,106 +157,6 @@ public static class LaunchServices
         return true;
     }
 
-    //private static async Task<bool> TryProcessLoginResult(LoginResult loginResult, bool isSteam, LoginAction action)
-    //{
-    //    if (loginResult.State == LoginState.NoService)
-    //    {
-    //        throw new Exception(Loc.Localize("LoginNoServiceMessage",
-    //                "This Square Enix account cannot play FINAL FANTASY XIV. Please make sure that you have an active subscription and that it is paid up.\n\nIf you bought FINAL FANTASY XIV on Steam, make sure to check the \"Use Steam service account\" checkbox while logging in.\nIf Auto-Login is enabled, hold shift while starting to access settings."));
-
-    //        return false;
-    //    }
-
-    //    if (loginResult.State == LoginState.NoTerms)
-    //    {
-
-    //        throw new Exception(Loc.Localize("LoginAcceptTermsMessage",
-    //                "Please accept the FINAL FANTASY XIV Terms of Use in the official launcher."));
-
-    //        return false;
-    //    }
-
-    //    if (loginResult.State == LoginState.NeedsPatchBoot)
-    //    {
-    //        throw new Exception("Boot conflict, need reinstall");
-
-    //        return false;
-    //    }
-
-    //    if (action == LoginAction.Repair)
-    //    {
-    //        try
-    //        {
-    //            if (loginResult.State == LoginState.NeedsPatchGame)
-    //            {
-    //                //if (!await RepairGame(loginResult).ConfigureAwait(false))
-    //                    return false;
-
-    //                loginResult.State = LoginState.Ok;
-    //                action = LoginAction.Game;
-    //            }
-    //            else
-    //            {
-    //                throw new Exception(Loc.Localize("LoginRepairResponseIsNotNeedsPatchGame",
-    //                        "The server sent an incorrect response - the repair cannot proceed."));
-
-    //                return false;
-    //            }
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            /*
-    //             * We should never reach here.
-    //             * If server responds badly, then it should not even have reached this point, as error cases should have been handled before.
-    //             * If RepairGame was unsuccessful, then it should have handled all of its possible errors, instead of propagating it upwards.
-    //             */
-    //            throw;
-    //            return false;
-    //        }
-    //    }
-
-    //    if (loginResult.State == LoginState.NeedsPatchGame)
-    //    {
-    //        //if (!await InstallGamePatch(loginResult).ConfigureAwait(false))
-    //        {
-    //            Log.Error("patchSuccess != true");
-    //            return false;
-    //        }
-
-    //        loginResult.State = LoginState.Ok;
-    //        action = LoginAction.Game;
-    //    }
-
-    //    if (action == LoginAction.GameNoLaunch)
-    //    {
-    //        return false;
-    //    }
-
-    //    Debug.Assert(loginResult.State == LoginState.Ok);
-
-    //    while (true)
-    //    {
-    //        List<Exception> exceptions = new();
-
-    //        try
-    //        {
-    //            using var process = await StartGameAndAddon(loginResult, isSteam, action == LoginAction.GameNoDalamud).ConfigureAwait(false);
-
-    //            if (process is null)
-    //                throw new Exception("Could not obtain Process Handle");
-
-    //            return true;
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            Log.Error(ex, "StartGameAndError resulted in an exception.");
-
-    //            exceptions.Add(ex);
-    //            throw;
-    //        }
-    //    }
-    //}
-
     public static DalamudLauncher.DalamudInstallState GetDalamudInstallState()
     {
         IDalamudRunner dalamudRunner = null!;
@@ -270,6 +173,9 @@ public static class LaunchServices
                 dalamudRunner = new UnixDalamudRunner(Program.CompatibilityTools, Program.DotnetRuntime);
                 dalamudCompatCheck = new UnixDalamudCompatibilityCheck();
                 break;
+
+            default:
+                throw new ArgumentOutOfRangeException();
         }
 
         var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
@@ -306,18 +212,12 @@ public static class LaunchServices
 
     public static Process StartGameAndAddon(LoginResult loginResult, bool dalamudOk)
     {
-        IDalamudRunner dalamudRunner = null!;
-
-        switch (Environment.OSVersion.Platform)
+        IDalamudRunner dalamudRunner = Environment.OSVersion.Platform switch
         {
-            case PlatformID.Win32NT:
-                dalamudRunner = new WindowsDalamudRunner();
-                break;
-
-            case PlatformID.Unix:
-                dalamudRunner = new UnixDalamudRunner(Program.CompatibilityTools, Program.DotnetRuntime);
-                break;
-        }
+            PlatformID.Win32NT => new WindowsDalamudRunner(),
+            PlatformID.Unix => new UnixDalamudRunner(Program.CompatibilityTools, Program.DotnetRuntime),
+            _ => throw new ArgumentOutOfRangeException()
+        };
 
         var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
             Program.Config.GamePath, Program.Storage!.Root, Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay, false, false, 

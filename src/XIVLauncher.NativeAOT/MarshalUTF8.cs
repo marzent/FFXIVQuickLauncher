@@ -9,7 +9,7 @@ namespace MarshalUTF8Extensions
             if (s == null)
             {
                 length = 0;
-                return IntPtr.Zero;
+                return nint.Zero;
             }
 
             var bytes = System.Text.Encoding.UTF8.GetBytes(s);

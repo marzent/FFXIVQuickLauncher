@@ -42,6 +42,10 @@ public class RepairProgress
                 Speed = verify.Speed;
                 break;
 
+            case PatchVerifier.VerifyState.NotStarted:
+            case PatchVerifier.VerifyState.Done:
+            case PatchVerifier.VerifyState.Cancelled:
+            case PatchVerifier.VerifyState.Error:
             default:
                 return;
         }
