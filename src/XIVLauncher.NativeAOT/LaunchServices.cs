@@ -159,8 +159,8 @@ public static class LaunchServices
 
     public static DalamudLauncher.DalamudInstallState GetDalamudInstallState()
     {
-        IDalamudRunner dalamudRunner = null!;
-        IDalamudCompatibilityCheck dalamudCompatCheck = null!;
+        IDalamudRunner dalamudRunner;
+        IDalamudCompatibilityCheck dalamudCompatCheck;
 
         switch (Environment.OSVersion.Platform)
         {

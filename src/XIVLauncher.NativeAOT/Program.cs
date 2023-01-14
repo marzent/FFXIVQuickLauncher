@@ -143,7 +143,7 @@ public class Program
 
     [UnmanagedCallersOnly(EntryPoint = "loadConfig")]
     public static void LoadConfig(nint acceptLanguage, nint gamePath, nint gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, byte license, nint patchPath,
-                                  byte patchAcquisitionMethod, long patchSpeedLimit, bool dalamudEnabled, byte dalamudLoadMethod, int dalamudLoadDelay, bool isAutoLogin, bool isHiDpi)
+                                  byte patchAcquisitionMethod, long patchSpeedLimit, byte dalamudLoadMethod, int dalamudLoadDelay, bool isAutoLogin, bool isHiDpi)
     {
         Config = new LauncherConfig
         {
@@ -163,8 +163,7 @@ public class Program
             PatchPath = new DirectoryInfo(Marshal.PtrToStringUTF8(patchPath)!),
             PatchAcquisitionMethod = (AcquisitionMethod)patchAcquisitionMethod,
             PatchSpeedLimit = patchSpeedLimit,
-
-            DalamudEnabled = dalamudEnabled,
+            
             DalamudLoadMethod = (DalamudLoadMethod)dalamudLoadMethod,
             DalamudLoadDelay = dalamudLoadDelay
         };
@@ -309,17 +308,17 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "getDalamudInstallState")]
-    public static bool GetDalamudInstallState()
+    public static byte GetDalamudInstallState()
     {
         try
         {
-            return LaunchServices.GetDalamudInstallState() == DalamudLauncher.DalamudInstallState.Ok;
+            return (byte)LaunchServices.GetDalamudInstallState();
         }
         catch (Exception ex)
         {
             Log.Error(ex, "An error getting the dalamud state has occured");
             Troubleshooting.LogException(ex, "An error getting the dalamud state has occured");
-            return false;
+            return (byte)DalamudLauncher.DalamudInstallState.Failed;
         }
     }
 
