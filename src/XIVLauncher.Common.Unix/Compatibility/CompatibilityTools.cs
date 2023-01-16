@@ -43,17 +43,15 @@ public class CompatibilityTools
 
     public bool IsToolDownloaded => File.Exists(Wine64Path) && Settings.Prefix.Exists;
 
-    private readonly Dxvk.DxvkHudType hudType;
-    private readonly bool gamemodeOn;
-    private readonly string dxvkAsyncOn;
+    public DxvkSettings DxvkSettings { get; private set; }
 
-    public CompatibilityTools(WineSettings wineSettings, Dxvk.DxvkHudType hudType, bool? gamemodeOn, bool? dxvkAsyncOn, DirectoryInfo toolsFolder)
+    private readonly bool gamemodeOn;
+
+    public CompatibilityTools(WineSettings wineSettings, DxvkSettings dxvkSettings, bool? gamemodeOn, DirectoryInfo toolsFolder)
     {
         this.Settings = wineSettings;
-        this.hudType = hudType;
+        this.DxvkSettings = dxvkSettings;
         this.gamemodeOn = gamemodeOn ?? false;
-        this.dxvkAsyncOn = (dxvkAsyncOn ?? false) ? "1" : "0";
-
         this.toolDirectory = new DirectoryInfo(Path.Combine(toolsFolder.FullName, "beta"));
         this.dxvkDirectory = new DirectoryInfo(Path.Combine(toolsFolder.FullName, "dxvk"));
 
@@ -67,9 +65,6 @@ public class CompatibilityTools
             if (!this.dxvkDirectory.Exists)
                 this.dxvkDirectory.Create();
         }
-
-        if (!wineSettings.Prefix.Exists)
-            wineSettings.Prefix.Create();
     }
 
     public async Task EnsureTool(DirectoryInfo tempPath)
@@ -81,7 +76,7 @@ public class CompatibilityTools
         }
 
         EnsurePrefix();
-        await Dxvk.InstallDxvk(Settings.Prefix, dxvkDirectory).ConfigureAwait(false);
+        await Dxvk.InstallDxvk(Settings.Prefix, dxvkDirectory, DxvkSettings).ConfigureAwait(false);
 
         IsToolReady = true;
     }
@@ -158,7 +153,7 @@ public class CompatibilityTools
 
         var wineEnviromentVariables = new Dictionary<string, string>();
         wineEnviromentVariables.Add("WINEPREFIX", Settings.Prefix.FullName);
-        wineEnviromentVariables.Add("WINEDLLOVERRIDES", $"msquic=,mscoree=n,b;d3d9,d3d11,d3d10core,dxgi={(wineD3D ? "b" : "n")}");
+        wineEnviromentVariables.Add("WINEDLLOVERRIDES", $"msquic=,mscoree=n,b;d3d9,d3d11,d3d10core,dxgi={(DxvkSettings.Enabled && !wineD3D ? "n" : "b")}");
 
         if (!string.IsNullOrEmpty(Settings.DebugVars))
         {
@@ -168,21 +163,14 @@ public class CompatibilityTools
         wineEnviromentVariables.Add("XL_WINEONLINUX", "true");
         string ldPreload = Environment.GetEnvironmentVariable("LD_PRELOAD") ?? "";
 
-        string dxvkHud = hudType switch
-        {
-            Dxvk.DxvkHudType.None => "0",
-            Dxvk.DxvkHudType.Fps => "fps",
-            Dxvk.DxvkHudType.Full => "full",
-            _ => throw new ArgumentOutOfRangeException()
-        };
-
-        if (this.gamemodeOn == true && !ldPreload.Contains("libgamemodeauto.so.0"))
+        if (gamemodeOn && !ldPreload.Contains("libgamemodeauto.so.0"))
         {
             ldPreload = ldPreload.Equals("") ? "libgamemodeauto.so.0" : ldPreload + ":libgamemodeauto.so.0";
         }
 
-        wineEnviromentVariables.Add("DXVK_HUD", dxvkHud);
-        wineEnviromentVariables.Add("DXVK_ASYNC", dxvkAsyncOn);
+        foreach (KeyValuePair<string, string> dxvkVar in DxvkSettings.DxvkVars)
+            wineEnviromentVariables.Add(dxvkVar.Key, dxvkVar.Value);
+
         wineEnviromentVariables.Add("WINEESYNC", Settings.EsyncOn);
         wineEnviromentVariables.Add("WINEFSYNC", Settings.FsyncOn);
 
