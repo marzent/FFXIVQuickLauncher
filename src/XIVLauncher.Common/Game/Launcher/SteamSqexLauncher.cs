@@ -74,7 +74,20 @@ public class SteamSqexLauncher : SqexLauncher
 
             try
             {
-                steamTicket = await Ticket.Get(steam).ConfigureAwait(true);
+                for (var i = 0; i < NUM_TRIES; i++)
+                {
+                    try
+                    {
+                        steamTicket = await Ticket.Get(steam).ConfigureAwait(true);
+
+                        if (steamTicket != null)
+                            break;
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new SteamException($"Could not request auth ticket (try {i + 1}/{NUM_TRIES})", ex);
+                    }
+                }
             }
             catch (Exception ex)
             {

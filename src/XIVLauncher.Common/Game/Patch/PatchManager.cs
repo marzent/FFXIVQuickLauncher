@@ -158,7 +158,7 @@ namespace XIVLauncher.Common.Game.Patch
                 case AcquisitionMethod.NetDownloader:
                     // ignored
                     break;
-
+                
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -204,7 +204,7 @@ namespace XIVLauncher.Common.Game.Patch
                 case AcquisitionMethod.NetDownloader:
                     acquisition = new NetDownloaderPatchAcquisition(this.patchStore, this.speedLimitBytes / MAX_DOWNLOADS_AT_ONCE);
                     break;
-                
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }

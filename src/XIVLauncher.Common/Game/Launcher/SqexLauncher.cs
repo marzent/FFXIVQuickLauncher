@@ -92,7 +92,7 @@ public class SqexLauncher : ILauncher
         PatchListEntry[] pendingPatches = Array.Empty<PatchListEntry>();
 
         LoginState loginState;
-
+        
         Log.Information("SqexLauncher::Login(cache:{UseCache})", useCache);
 
         if (!useCache || !this.uniqueIdCache.TryGet(userName, out var cached))
@@ -225,7 +225,7 @@ public class SqexLauncher : ILauncher
     }
 
     /// <summary>
-    /// Check ver & bck files for sanity.
+    /// Check ver and bck files for sanity.
     /// </summary>
     /// <param name="gamePath"></param>
     /// <param name="exLevel"></param>
