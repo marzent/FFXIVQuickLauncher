@@ -23,6 +23,7 @@ public class SteamSqexLauncher : SqexLauncher
     private readonly ISteam? steam;
     private readonly byte[]? steamTicketData;
     private Ticket? steamTicket;
+    private const int NUM_TRIES = 5;
 
     public SteamSqexLauncher(ISteam? steam, IUniqueIdCache uniqueIdCache, ISettings? settings)
         : base(uniqueIdCache, settings)

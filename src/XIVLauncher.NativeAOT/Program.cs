@@ -318,7 +318,7 @@ public class Program
         {
             Log.Error(ex, "An error getting the dalamud state has occured");
             Troubleshooting.LogException(ex, "An error getting the dalamud state has occured");
-            return (byte)DalamudLauncher.DalamudInstallState.Failed;
+            return (byte)DalamudLauncher.DalamudInstallState.OutOfDate;
         }
     }
 

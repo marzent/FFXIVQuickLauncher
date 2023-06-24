@@ -181,14 +181,13 @@ public class WindowsDalamudRunner : IDalamudRunner
                 throw new DalamudRunnerException("No injector output");
 
             Log.Verbose("=> Reading result");
-
+            
             Process gameProcess;
 
             try
             {
-                Process gameProcess;
                 Log.Verbose("=> Dalamud.Injector output: {Output}", output);
-                var dalamudConsoleOutput = JsonConvert.DeserializeObject<DalamudConsoleOutput>(output);
+                var dalamudConsoleOutput = JsonSerializer.Deserialize(output, DalamudConsoleOutputJsonContext.Default.DalamudConsoleOutput);
 
                 if (dalamudConsoleOutput.Handle == 0)
                 {
