@@ -6,15 +6,14 @@
     <Nullable>enable</Nullable>
     <PublishAot>true</PublishAot>
     <NativeLib>Shared</NativeLib>
+    <LangVersion>10.0</LangVersion>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <LangVersion>10.0</LangVersion>
-    <WarningLevel>4</WarningLevel>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <StripSymbols>false</StripSymbols>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <LangVersion>10.0</LangVersion>
-    <WarningLevel>4</WarningLevel>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
     <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
     <StripSymbols>true</StripSymbols>
