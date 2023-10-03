@@ -272,7 +272,7 @@ namespace XIVLauncher.Common.Dalamud
             {
                 this.SetOverlayProgress(IDalamudLoadingOverlay.DalamudUpdateStep.Assets);
                 this.ReportOverlayProgress(null, 0, null);
-                var assetResult = await AssetManager.EnsureAssets(this.assetDirectory, this.forceProxy).ConfigureAwait(true);
+                var assetResult = await AssetManager.EnsureAssets(this, this.assetDirectory).ConfigureAwait(true);
                 AssetDirectory = assetResult.AssetDir;
                 assetVer = assetResult.Version;
             }
@@ -292,6 +292,7 @@ namespace XIVLauncher.Common.Dalamud
 
             Runner = new FileInfo(Path.Combine(currentVersionPath.FullName, "Dalamud.Injector.exe"));
             SetOverlayProgress(IDalamudLoadingOverlay.DalamudUpdateStep.Starting);
+            ReportOverlayProgress(null, 0, null);
         }
 
         private static bool CanRead(FileInfo info)
@@ -376,6 +377,9 @@ namespace XIVLauncher.Common.Dalamud
 
         private static void CleanUpOld(DirectoryInfo addonPath, string currentVer)
         {
+            if (GameHelpers.CheckIsGameOpen())
+                return;
+
             if (!addonPath.Exists)
                 return;
 
@@ -424,18 +428,8 @@ namespace XIVLauncher.Common.Dalamud
             {
                 var devPath = new DirectoryInfo(Path.Combine(addonPath.FullName, "..", "dev"));
 
-                if (!devPath.Exists)
-                    devPath.Create();
-                else
-                {
-                    devPath.Delete(true);
-                    devPath.Create();
-                }
-
-                foreach (var fileInfo in addonPath.GetFiles())
-                {
-                    fileInfo.CopyTo(Path.Combine(devPath.FullName, fileInfo.Name));
-                }
+                PlatformHelpers.DeleteAndRecreateDirectory(devPath);
+                PlatformHelpers.CopyFilesRecursively(addonPath, devPath);
             }
             catch (Exception ex)
             {
@@ -524,7 +518,7 @@ namespace XIVLauncher.Common.Dalamud
             File.Delete(downloadPath);
         }
 
-        private async Task DownloadFile(string url, string path, TimeSpan timeout)
+        public async Task DownloadFile(string url, string path, TimeSpan timeout)
         {
             if (this.forceProxy && url.Contains("/File/Get/"))
             {
