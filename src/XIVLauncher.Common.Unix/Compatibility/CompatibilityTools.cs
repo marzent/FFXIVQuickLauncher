@@ -38,10 +38,10 @@ public class CompatibilityTools
     private string WineBinPath => Settings.StartupType == WineStartupType.Managed ?
                                     Path.Combine(toolDirectory.FullName, WINE_XIV_RELEASE_NAME, "bin") :
                                     Settings.CustomBinPath;
-    private string WinePath => Path.Combine(WineBinPath, "wine");
+    private string Wine64Path => Path.Combine(WineBinPath, "wine64");
     private string WineServerPath => Path.Combine(WineBinPath, "wineserver");
 
-    public bool IsToolDownloaded => File.Exists(WinePath) && Settings.Prefix.Exists;
+    public bool IsToolDownloaded => File.Exists(Wine64Path) && Settings.Prefix.Exists;
 
     private readonly Dxvk.DxvkHudType hudType;
     private readonly bool gamemodeOn;
@@ -74,7 +74,7 @@ public class CompatibilityTools
 
     public async Task EnsureTool(DirectoryInfo tempPath)
     {
-        if (!File.Exists(WinePath))
+        if (!File.Exists(Wine64Path))
         {
             Log.Information("Compatibility tool does not exist, downloading");
             await DownloadTool(tempPath).ConfigureAwait(false);
@@ -125,7 +125,7 @@ public class CompatibilityTools
 
     public Process RunInPrefix(string command, string workingDirectory = "", IDictionary<string, string> environment = null, bool redirectOutput = false, bool writeLog = false, bool wineD3D = false)
     {
-        var psi = new ProcessStartInfo(WinePath);
+        var psi = new ProcessStartInfo(Wine64Path);
         psi.Arguments = command;
 
         Log.Verbose("Running in prefix: {FileName} {Arguments}", psi.FileName, command);
@@ -134,7 +134,7 @@ public class CompatibilityTools
 
     public Process RunInPrefix(string[] args, string workingDirectory = "", IDictionary<string, string> environment = null, bool redirectOutput = false, bool writeLog = false, bool wineD3D = false)
     {
-        var psi = new ProcessStartInfo(WinePath);
+        var psi = new ProcessStartInfo(Wine64Path);
         foreach (var arg in args)
             psi.ArgumentList.Add(arg);
 
@@ -202,7 +202,7 @@ public class CompatibilityTools
         psi.FileName = "flatpak-spawn";
 
         psi.ArgumentList.Insert(0, "--host");
-        psi.ArgumentList.Insert(1, WinePath);
+        psi.ArgumentList.Insert(1, Wine64Path);
 
         foreach (KeyValuePair<string, string> envVar in wineEnviromentVariables)
         {
