@@ -251,8 +251,20 @@ public class CompatibilityTools
     {
         var wineDbg = RunInPrefix("winedbg --command \"info proc\"", redirectOutput: true);
         var output = wineDbg.StandardOutput.ReadToEnd();
-        var matchingLines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Where(l => l.Contains(executableName));
-        return matchingLines.Select(l => int.Parse(l.Substring(1, 8), System.Globalization.NumberStyles.HexNumber)).ToArray();
+        var matchingLines = output
+                            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                            .Where(l => l.Contains(executableName))
+                            .Where(l => l.Length > 8);
+
+        return matchingLines
+               .Select(l => int.TryParse(l.AsSpan(1, 8),
+                   System.Globalization.NumberStyles.HexNumber,
+                   null, out var parsedValue)
+                   ? parsedValue
+                   : (int?)null)
+               .Where(pid => pid.HasValue)
+               .Select(pid => pid.Value)
+               .ToArray();
     }
 
     public Int32 GetProcessId(string executableName)
@@ -266,9 +278,23 @@ public class CompatibilityTools
         var output = wineDbg.StandardOutput.ReadToEnd();
         if (output.Contains("syntax error\n"))
             return 0;
-        var matchingLines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Skip(1).Where(
-            l => int.Parse(l.Substring(1, 8), System.Globalization.NumberStyles.HexNumber) == winePid);
-        var unixPids = matchingLines.Select(l => int.Parse(l.Substring(10, 8), System.Globalization.NumberStyles.HexNumber)).ToArray();
+
+        var matchingLines = output
+                            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                            .Skip(1)
+                            .Where(l => l.Length > 18)
+                            .Where(l => int.TryParse(l.AsSpan(1, 8),
+                                System.Globalization.NumberStyles.HexNumber,
+                                null, out var parsedValue) && parsedValue == winePid)
+                            .Where(l => int.TryParse(l.AsSpan(10, 8),
+                                System.Globalization.NumberStyles.HexNumber,
+                                null, out _));
+
+        var unixPids = matchingLines
+                       .Select(l => int.Parse(l.Substring(10, 8),
+                           System.Globalization.NumberStyles.HexNumber))
+                       .ToArray();
+
         return unixPids.FirstOrDefault();
     }
 
