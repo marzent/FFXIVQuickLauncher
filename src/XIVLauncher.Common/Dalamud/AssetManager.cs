@@ -11,7 +11,6 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using XIVLauncher.Common.Util;
-using XIVLauncher.PlatformAbstractions;
 
 namespace XIVLauncher.Common.Dalamud
 {
@@ -114,7 +113,7 @@ namespace XIVLauncher.Common.Dalamud
 
                 var packageUrl = info.PackageUrl;
 
-                var tempPath = Path.GetTempFileName();
+                var tempPath = PlatformHelpers.GetTempFileName();
 
                 if (File.Exists(tempPath))
                     File.Delete(tempPath);

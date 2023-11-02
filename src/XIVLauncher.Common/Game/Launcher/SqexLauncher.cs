@@ -1,5 +1,3 @@
-
-
 #nullable enable
 
 using System;
@@ -27,8 +25,6 @@ using XIVLauncher.Common.Game.Exceptions;
 using XIVLauncher.Common.PlatformAbstractions;
 using XIVLauncher.Common.Util;
 
-#nullable enable
-
 namespace XIVLauncher.Common.Game.Launcher;
 
 public class SqexLauncher : ILauncher
@@ -38,9 +34,9 @@ public class SqexLauncher : ILauncher
     private readonly HttpClient client;
     private OauthLoginResult? oauthLoginResult;
     private string? uniqueId;
-    
+
     private readonly string frontierUrlTemplate;
-    private const string FALLBACK_FRONTIER_URL_TEMPLATE = "https://launcher.finalfantasyxiv.com/v620/index.html?rc_lang={0}&time={1}";
+    private const string FALLBACK_FRONTIER_URL_TEMPLATE = "https://launcher.finalfantasyxiv.com/v650/index.html?rc_lang={0}&time={1}";
 
     public SqexLauncher(IUniqueIdCache uniqueIdCache, ISettings? settings, string? frontierUrl = null)
     {
@@ -92,7 +88,7 @@ public class SqexLauncher : ILauncher
         PatchListEntry[] pendingPatches = Array.Empty<PatchListEntry>();
 
         LoginState loginState;
-        
+
         Log.Information("SqexLauncher::Login(cache:{UseCache})", useCache);
 
         if (!useCache || !this.uniqueIdCache.TryGet(userName, out var cached))
@@ -154,15 +150,15 @@ public class SqexLauncher : ILauncher
             UniqueId = this.uniqueId
         };
     }
-    
+
     protected virtual void ModifyGameLaunchOptions(Dictionary<string, string> environment, ArgumentBuilder argumentBuilder)
     {
         // no-op for SqexLauncher, overridden by SteamSqexLauncher
     }
 
     public Process? LaunchGame(IGameRunner runner, string sessionId, int region, int expansionLevel,
-                              string additionalArguments, DirectoryInfo gamePath, bool isDx11,
-                              ClientLanguage language, bool encryptArguments, DpiAwareness dpiAwareness)
+                               string additionalArguments, DirectoryInfo gamePath, bool isDx11,
+                               ClientLanguage language, bool encryptArguments, DpiAwareness dpiAwareness)
     {
         Log.Information(
             $"SqexLauncher::LaunchGame(args:{additionalArguments})");
@@ -199,8 +195,8 @@ public class SqexLauncher : ILauncher
         var workingDir = Path.Combine(gamePath.FullName, "game");
 
         var arguments = encryptArguments
-            ? argumentBuilder.BuildEncrypted()
-            : argumentBuilder.Build();
+                            ? argumentBuilder.BuildEncrypted()
+                            : argumentBuilder.Build();
 
         return runner.Start(exePath, workingDir, arguments, environment, dpiAwareness);
     }
@@ -303,8 +299,8 @@ public class SqexLauncher : ILauncher
     public async Task<PatchListEntry[]> CheckBootVersion(DirectoryInfo gamePath, bool forceBaseVersion = false)
     {
         var request = new HttpRequestMessage(HttpMethod.Get,
-            $"http://patch-bootver.ffxiv.com/http/win32/ffxivneo_release_boot/{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Boot.GetVer(gamePath))}/?time=" +
-            GetLauncherFormattedTimeLongRounded());
+                                             $"http://patch-bootver.ffxiv.com/http/win32/ffxivneo_release_boot/{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Boot.GetVer(gamePath))}/?time=" +
+                                             GetLauncherFormattedTimeLongRounded());
 
         request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);
         request.Headers.AddWithoutValidation("Host", "patch-bootver.ffxiv.com");
@@ -334,13 +330,13 @@ public class SqexLauncher : ILauncher
         {
             throw new VersionCheckLoginException(LoginState.NoLogin);
         }
-        
+
         var request = new HttpRequestMessage(HttpMethod.Post,
             $"https://patch-gamever.ffxiv.com/http/win32/ffxivneo_release_game/{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ffxiv.GetVer(gamePath))}/{this.oauthLoginResult.SessionId}");
 
         request.Headers.AddWithoutValidation("X-Hash-Check", "enabled");
         request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);
-        
+
         if (!forceBaseVersion)
             EnsureVersionSanity(gamePath, this.oauthLoginResult.MaxExpansion);
         request.Content = new StringContent(GetVersionReport(gamePath, this.oauthLoginResult.MaxExpansion, forceBaseVersion));
@@ -441,7 +437,7 @@ public class SqexLauncher : ILauncher
     protected async Task<OauthLoginResult> DoOauthLogin(string stored, string topUrl, string userName, string password, string otp)
     {
         var request = new HttpRequestMessage(HttpMethod.Post,
-            "https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/login.send");
+                                             "https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/login.send");
 
         request.Headers.AddWithoutValidation("Accept", "image/gif, image/jpeg, image/pjpeg, application/x-ms-application, application/xaml+xml, application/x-ms-xbap, */*");
         request.Headers.AddWithoutValidation("Referer", topUrl);
@@ -526,7 +522,7 @@ public class SqexLauncher : ILauncher
         }
         catch (Exception exc)
         {
-            throw new Exception("Could not get gate status", exc);
+            throw new Exception("Could not get login status", exc);
         }
     }
 
@@ -562,6 +558,7 @@ public class SqexLauncher : ILauncher
         request.Headers.AddWithoutValidation("Origin", "https://launcher.finalfantasyxiv.com");
 
         request.Headers.AddWithoutValidation("Referer", GenerateFrontierReferer(language));
+        request.Headers.AddWithoutValidation("Connection", "Keep-Alive");
 
         var resp = await this.client.SendAsync(request);
         return await resp.Content.ReadAsByteArrayAsync();
