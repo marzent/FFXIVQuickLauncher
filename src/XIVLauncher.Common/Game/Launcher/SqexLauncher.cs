@@ -38,12 +38,11 @@ public class SqexLauncher : ILauncher
     private readonly string frontierUrlTemplate;
     private const string FALLBACK_FRONTIER_URL_TEMPLATE = "https://launcher.finalfantasyxiv.com/v650/index.html?rc_lang={0}&time={1}";
 
-    public SqexLauncher(IUniqueIdCache uniqueIdCache, ISettings? settings, string? frontierUrl = null)
+    public SqexLauncher(IUniqueIdCache uniqueIdCache, ISettings? settings, string frontierUrl)
     {
         this.uniqueIdCache = uniqueIdCache;
         this.settings = settings;
-        frontierUrlTemplate =
-            string.IsNullOrWhiteSpace(frontierUrl) ? FALLBACK_FRONTIER_URL_TEMPLATE : frontierUrl;
+        frontierUrlTemplate = frontierUrl;
 
         ServicePointManager.Expect100Continue = false;
 

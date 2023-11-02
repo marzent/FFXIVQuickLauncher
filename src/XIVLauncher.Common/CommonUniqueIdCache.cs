@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.PlatformAbstractions;
 
 namespace XIVLauncher.PlatformAbstractions

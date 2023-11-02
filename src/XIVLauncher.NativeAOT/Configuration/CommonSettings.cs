@@ -1,5 +1,4 @@
-﻿using NativeLibrary;
-using XIVLauncher.Common;
+﻿using XIVLauncher.Common;
 using XIVLauncher.Common.Game.Patch.Acquisition;
 using XIVLauncher.Common.PlatformAbstractions;
 
@@ -7,12 +6,7 @@ namespace XIVLauncher.NativeAOT.Configuration;
 
 public class CommonSettings : ISettings
 {
-    private readonly LauncherConfig config;
-
-    public CommonSettings()
-    {
-        config = Program.Config!;
-    }
+    private readonly LauncherConfig config = Program.Config!;
 
     private static CommonSettings? instance;
 

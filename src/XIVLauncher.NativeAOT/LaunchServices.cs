@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
-using NativeLibrary;
 using System.Text.Json;
 using Serilog;
 using XIVLauncher.Common;
@@ -47,7 +46,7 @@ public static class LaunchServices
         {
             case License.Windows:
                 PlatformHelpers.IsMac = false;
-                Program.Launcher = new SqexLauncher(Program.UniqueIdCache!, Program.CommonSettings);
+                Program.Launcher = new SqexLauncher(Program.UniqueIdCache!, Program.CommonSettings, Program.FrontierUrl!);
                 return;
 
             case License.Mac:
@@ -55,7 +54,7 @@ public static class LaunchServices
                 if (Program.Launcher is MacSqexLauncher)
                     return;
 
-                Program.Launcher = new MacSqexLauncher(Program.UniqueIdCache!, Program.CommonSettings);
+                Program.Launcher = new MacSqexLauncher(Program.UniqueIdCache!, Program.CommonSettings, Program.FrontierUrl!);
                 return;
 
             case License.Steam:
@@ -63,7 +62,7 @@ public static class LaunchServices
                 if (Program.Launcher is SteamSqexLauncher)
                     return;
 
-                Program.Launcher = new SteamSqexLauncher(Program.Steam, Program.UniqueIdCache!, Program.CommonSettings);
+                Program.Launcher = new SteamSqexLauncher(Program.Steam, Program.UniqueIdCache!, Program.CommonSettings, Program.FrontierUrl!);
                 return;
 
             default:
@@ -179,8 +178,9 @@ public static class LaunchServices
         }
 
         var dalamudLauncher = new DalamudLauncher(dalamudRunner, Program.DalamudUpdater, Program.Config!.DalamudLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
-            Program.Config.GamePath, Program.Storage!.Root, Program.Storage!.GetFolder("logs"), Program.Config.ClientLanguage ?? ClientLanguage.English, Program.Config.DalamudLoadDelay, false, false,
-            false, Troubleshooting.GetTroubleshootingJson());
+                                                  Program.Config.GamePath, Program.Storage!.Root, Program.Storage!.GetFolder("logs"), Program.Config.ClientLanguage ?? ClientLanguage.English,
+                                                  Program.Config.DalamudLoadDelay, false, false,
+                                                  false, Troubleshooting.GetTroubleshootingJson());
 
         try
         {

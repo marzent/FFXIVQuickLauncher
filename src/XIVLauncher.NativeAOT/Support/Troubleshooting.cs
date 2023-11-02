@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using NativeLibrary;
 using Serilog;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
@@ -37,7 +36,7 @@ namespace XIVLauncher.NativeAOT.Support
 
             try
             {
-                var fixedContext = context?.Split(new []{'\r', '\n'}, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                var fixedContext = context.Split(new []{'\r', '\n'}, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
 
                 var payload = new ExceptionPayload
                 {

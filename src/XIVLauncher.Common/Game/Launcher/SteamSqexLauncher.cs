@@ -2,11 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-
-#if NET6_0_OR_GREATER && !WIN32
-using System.Net.Security;
-#endif
-
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Serilog;
@@ -25,14 +20,14 @@ public class SteamSqexLauncher : SqexLauncher
     private Ticket? steamTicket;
     private const int NUM_TRIES = 5;
 
-    public SteamSqexLauncher(ISteam? steam, IUniqueIdCache uniqueIdCache, ISettings? settings)
-        : base(uniqueIdCache, settings)
+    public SteamSqexLauncher(ISteam? steam, IUniqueIdCache uniqueIdCache, ISettings? settings, string frontierUrl)
+        : base(uniqueIdCache, settings, frontierUrl)
     {
         this.steam = steam;
     }
 
-    public SteamSqexLauncher(byte[] steamTicketData, IUniqueIdCache uniqueIdCache, ISettings? settings)
-        : base(uniqueIdCache, settings)
+    public SteamSqexLauncher(byte[] steamTicketData, IUniqueIdCache uniqueIdCache, ISettings? settings, string frontierUrl)
+        : base(uniqueIdCache, settings, frontierUrl)
     {
         this.steamTicketData = steamTicketData;
     }

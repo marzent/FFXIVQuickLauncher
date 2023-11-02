@@ -1,28 +1,27 @@
 ﻿using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using MarshalUTF8Extensions;
 using Serilog;
+using Serilog.Events;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
+using XIVLauncher.Common.Game;
+using XIVLauncher.Common.Game.Launcher;
 using XIVLauncher.Common.Game.Patch.Acquisition;
+using XIVLauncher.Common.Game.Patch.PatchList;
+using XIVLauncher.Common.Patching;
 using XIVLauncher.Common.PlatformAbstractions;
-using XIVLauncher.Common.Windows;
 using XIVLauncher.Common.Unix;
 using XIVLauncher.Common.Unix.Compatibility;
 using XIVLauncher.Common.Util;
+using XIVLauncher.Common.Windows;
 using XIVLauncher.NativeAOT.Configuration;
-using static XIVLauncher.Common.Unix.Compatibility.Dxvk;
-using XIVLauncher.Common.Game.Launcher;
-using XIVLauncher.PlatformAbstractions;
-using XIVLauncher.NativeAOT;
 using XIVLauncher.NativeAOT.Support;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using XIVLauncher.Common.Game;
-using XIVLauncher.Common.Patching;
-using Serilog.Events;
-using MarshalUTF8Extensions;
-using XIVLauncher.Common.Game.Patch.PatchList;
+using XIVLauncher.PlatformAbstractions;
+using static XIVLauncher.Common.Unix.Compatibility.Dxvk;
 
-namespace NativeLibrary;
+namespace XIVLauncher.NativeAOT;
 
 [JsonSerializable(typeof(LoginResult))]
 [JsonSerializable(typeof(RepairProgress))]
@@ -34,11 +33,12 @@ internal partial class ProgramJsonContext : JsonSerializerContext
 
 public class Program
 {
-    public static string? AppName;
-    public static Storage? Storage;
+    public static string? AppName { get; private set; }
+    public static Storage? Storage { get; private set; }
     public static LauncherConfig? Config { get; private set; }
     public static CommonSettings? CommonSettings => CommonSettings.Instance;
     public static DirectoryInfo DotnetRuntime => Storage!.GetFolder("runtime");
+    public static string? FrontierUrl { get; private set; }
     public static ISteam? Steam { get; private set; }
     public static DalamudUpdater? DalamudUpdater { get; private set; }
     public static CompatibilityTools? CompatibilityTools { get; private set; }
@@ -49,15 +49,16 @@ public class Program
     private const uint STEAM_APP_ID_FT = 312060;
 
     [UnmanagedCallersOnly(EntryPoint = "initXL")]
-    public static void Init(nint appName, nint storagePath, bool verboseLogging)
+    public static void Init(nint appName, nint storagePath, bool verboseLogging, nint frontierUrl)
     {
         AppName = Marshal.PtrToStringUTF8(appName)!;
         Storage = new Storage(AppName, Marshal.PtrToStringUTF8(storagePath)!);
+        FrontierUrl = Marshal.PtrToStringUTF8(frontierUrl)!;
 
         var logLevel = verboseLogging ? LogEventLevel.Verbose : LogEventLevel.Information;
         Log.Logger = new LoggerConfiguration()
                      .WriteTo.Async(a =>
-                         a.File(Path.Combine(Storage.GetFolder("logs").FullName, "launcher.log")))
+                                        a.File(Path.Combine(Storage.GetFolder("logs").FullName, "launcher.log")))
                      .WriteTo.Console()
                      .MinimumLevel.Is(logLevel)
                      .CreateLogger();
@@ -99,7 +100,7 @@ public class Program
         DalamudUpdater.Run();
 
         UniqueIdCache = new CommonUniqueIdCache(Storage.GetFile("uidCache.json"));
-        Launcher = new SqexLauncher(UniqueIdCache, Program.CommonSettings);
+        Launcher = new SqexLauncher(UniqueIdCache, CommonSettings, FrontierUrl);
         LaunchServices.EnsureLauncherAffinity((XIVLauncher.NativeAOT.Configuration.License)Config!.License!);
     }
 
@@ -163,7 +164,7 @@ public class Program
             PatchPath = new DirectoryInfo(Marshal.PtrToStringUTF8(patchPath)!),
             PatchAcquisitionMethod = (AcquisitionMethod)patchAcquisitionMethod,
             PatchSpeedLimit = patchSpeedLimit,
-            
+
             DalamudLoadMethod = (DalamudLoadMethod)dalamudLoadMethod,
             DalamudLoadDelay = dalamudLoadDelay
         };

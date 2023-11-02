@@ -7,9 +7,6 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text.Json.Serialization;
-using Serilog;
-using XIVLauncher.Common.Game.Patch;
-using XIVLauncher.Common.Util;
 
 namespace XIVLauncher.Common.Game
 {
@@ -154,7 +151,7 @@ namespace XIVLauncher.Common.Game
             }
         }
     }
-    
+
     [JsonSerializable(typeof(IntegrityCheck.IntegrityCheckResult))]
     internal partial class IntegrityCheckResultJsonContext: JsonSerializerContext
     {
