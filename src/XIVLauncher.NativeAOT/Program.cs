@@ -114,10 +114,14 @@ public class Program
     [UnmanagedCallersOnly(EntryPoint = "createCompatToolsInstance")]
     public static void CreateCompatToolsInstance(nint winePath, nint wineDebugVars, bool esync)
     {
+        Log.Verbose($"Wine Path: {winePath}");
         var wineLogFile = new FileInfo(Path.Combine(Storage!.GetFolder("logs").FullName, "wine.log"));
+        Log.Verbose($"Wine Log File: {wineLogFile}");
         var winePrefix = Storage.GetFolder("wineprefix");
+        Log.Verbose($"Wine Prefix Folder: {winePrefix}");
         var wineSettings = new WineSettings(WineStartupType.Custom, Marshal.PtrToStringUTF8(winePath), Marshal.PtrToStringUTF8(wineDebugVars), wineLogFile, winePrefix, esync, false);
         var toolsFolder = Storage.GetFolder("compatibilitytool");
+        Log.Verbose($"Tools Folder: {toolsFolder}");
         CompatibilityTools = new CompatibilityTools(wineSettings, DxvkHudType.None, false, true, toolsFolder);
     }
 

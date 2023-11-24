@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Serilog;
+using XIVLauncher.Common.Http;
 using XIVLauncher.Common.Util;
 
 #if FLATPAK
@@ -128,6 +129,10 @@ public class CompatibilityTools
         var psi = new ProcessStartInfo(Wine64Path);
         psi.Arguments = command;
 
+        Log.Verbose("Command: {Command}", command);
+        Log.Verbose("Working Directory: {WorkingDirectory}", workingDirectory);
+        Log.Verbose("Wine64Path: {Wine64Path}", Wine64Path);
+        Log.Verbose("Environment: {Env}", environment);
         Log.Verbose("Running in prefix: {FileName} {Arguments}", psi.FileName, command);
         return RunInPrefix(psi, workingDirectory, environment, redirectOutput, writeLog, wineD3D);
     }
@@ -135,9 +140,16 @@ public class CompatibilityTools
     public Process RunInPrefix(string[] args, string workingDirectory = "", IDictionary<string, string> environment = null, bool redirectOutput = false, bool writeLog = false, bool wineD3D = false)
     {
         var psi = new ProcessStartInfo(Wine64Path);
-        foreach (var arg in args)
-            psi.ArgumentList.Add(arg);
 
+        foreach (var arg in args)
+        {
+            psi.ArgumentList.Add(arg);
+            Log.Verbose("Argument: {Arg}", arg);
+        }
+
+        Log.Verbose("Working Directory: {WorkingDirectory}", workingDirectory);
+        Log.Verbose("Wine64Path: {Wine64Path}", Wine64Path);
+        Log.Verbose("Environment: {Env}", environment);
         Log.Verbose("Running in prefix: {FileName} {Arguments}", psi.FileName, psi.ArgumentList.Aggregate(string.Empty, (a, b) => a + " " + b));
         return RunInPrefix(psi, workingDirectory, environment, redirectOutput, writeLog, wineD3D);
     }
@@ -249,8 +261,9 @@ public class CompatibilityTools
 
     public Int32[] GetProcessIds(string executableName)
     {
-        var wineDbg = RunInPrefix("winedbg --command \"info proc\"", redirectOutput: true);
+        var wineDbg = RunInPrefix("winedbg --command \"info proc\"", redirectOutput: true, writeLog: false);
         var output = wineDbg.StandardOutput.ReadToEnd();
+        Log.Verbose("GetProcessIds: {Output}", output);
         var matchingLines = output
                             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
                             .Where(l => l.Contains(executableName))
@@ -274,8 +287,9 @@ public class CompatibilityTools
 
     public Int32 GetUnixProcessId(Int32 winePid)
     {
-        var wineDbg = RunInPrefix("winedbg --command \"info procmap\"", redirectOutput: true);
+        var wineDbg = RunInPrefix("winedbg --command \"info procmap\"", redirectOutput: true, writeLog: false);
         var output = wineDbg.StandardOutput.ReadToEnd();
+        Log.Verbose("GetUnixProcessId: {Output}", output);
         if (output.Contains("syntax error\n"))
             return 0;
 
