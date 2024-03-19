@@ -156,16 +156,13 @@ public class SqexLauncher : ILauncher
     }
 
     public Process? LaunchGame(IGameRunner runner, string sessionId, int region, int expansionLevel,
-                               string additionalArguments, DirectoryInfo gamePath, bool isDx11,
+                               string additionalArguments, DirectoryInfo gamePath,
                                ClientLanguage language, bool encryptArguments, DpiAwareness dpiAwareness)
     {
         Log.Information(
             $"SqexLauncher::LaunchGame(args:{additionalArguments})");
 
         var exePath = Path.Combine(gamePath.FullName, "game", "ffxiv_dx11.exe");
-        if (!isDx11)
-            exePath = Path.Combine(gamePath.FullName, "game", "ffxiv.exe");
-
         var environment = new Dictionary<string, string>();
 
         var argumentBuilder = new ArgumentBuilder()

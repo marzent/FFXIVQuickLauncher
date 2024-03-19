@@ -119,7 +119,6 @@ namespace XIVLauncher.NativeAOT.Support
             var payload = new TroubleshootingPayload
             {
                 When = DateTime.Now,
-                IsDx11 = Program.Config.IsDx11.GetValueOrDefault(),
                 IsAutoLogin = Program.Config.IsAutoLogin.GetValueOrDefault(),
                 IsUidCache = Program.Config.IsUidCacheEnabled.GetValueOrDefault(),
                 DalamudEnabled = Program.Config.DalamudLoadMethod.GetValueOrDefault() != DalamudLoadMethod.ACLonly,
@@ -160,8 +159,6 @@ namespace XIVLauncher.NativeAOT.Support
         internal class TroubleshootingPayload
         {
             public DateTime When { get; set; }
-
-            public bool IsDx11 { get; set; }
 
             public bool IsAutoLogin { get; set; }
 

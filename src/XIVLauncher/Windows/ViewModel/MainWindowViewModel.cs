@@ -293,7 +293,7 @@ namespace XIVLauncher.Windows.ViewModel
 
         private async Task<bool> CheckGateStatus()
         {
-            GateStatus? gateStatus = null;
+            GateStatus gateStatus = null;
 
             try
             {
@@ -664,7 +664,7 @@ namespace XIVLauncher.Windows.ViewModel
                     using var process = await StartGameAndAddon(
                         loginResult,
                         isSteam,
-                        action == AfterLoginAction.StartWithoutDalamud,
+                        action == AfterLoginAction.StartWithoutDalamud || Updates.HaveFeatureFlag(Updates.LeaseFeatureFlags.GlobalDisableDalamud),
                         action == AfterLoginAction.StartWithoutThird,
                         action == AfterLoginAction.StartWithoutPlugins).ConfigureAwait(false);
 
@@ -984,6 +984,21 @@ namespace XIVLauncher.Windows.ViewModel
                                     .WithParentWindow(_window)
                                     .Show() == MessageBoxResult.OK;
                             }
+                            // Seemingly no better way to detect this, probably brittle if this is localized
+                            else if (verify.LastException != null && verify.LastException.ToString().Contains("Data error"))
+                            {
+                                doVerify = new CustomMessageBox.Builder()
+                                           .WithText(Loc.Localize("GameRepairError_DataError", "Your hard drive reported an error while checking game files. XIVLauncher cannot repair this installation, as the error may indicate a physical issue with your hard drive.\nPlease check your drive's health, or try to update its firmware.\nReinstalling the game in a new location may solve this issue temporarily."))
+                                           .WithExitOnClose(CustomMessageBox.ExitOnCloseModes.DontExitOnClose)
+                                           .WithImage(MessageBoxImage.Error)
+                                           .WithShowHelpLinks(true)
+                                           .WithShowDiscordLink(true)
+                                           .WithShowNewGitHubIssue(false)
+                                           .WithButtons(MessageBoxButton.OKCancel)
+                                           .WithOkButtonText(Loc.Localize("GameRepairSuccess_TryAgain", "_Try again"))
+                                           .WithParentWindow(_window)
+                                           .Show() == MessageBoxResult.OK;
+                            }
                             else
                             {
                                 doVerify = CustomMessageBox.Builder
@@ -1068,7 +1083,7 @@ namespace XIVLauncher.Windows.ViewModel
             Environment.Exit(0);
         }
 
-        public async Task<Process?> StartGameAndAddon(Launcher.LoginResult loginResult, bool isSteam, bool forceNoDalamud, bool noThird, bool noPlugins)
+        public async Task<Process> StartGameAndAddon(Launcher.LoginResult loginResult, bool isSteam, bool forceNoDalamud, bool noThird, bool noPlugins)
         {
             var dalamudLauncher = new DalamudLauncher(new WindowsDalamudRunner(), App.DalamudUpdater, App.Settings.InGameAddonLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
                 App.Settings.GamePath,
@@ -1108,7 +1123,7 @@ namespace XIVLauncher.Windows.ViewModel
                     "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Exclamation, parentWindow: _window);
             }
 
-            if (App.Settings.InGameAddonEnabled && !forceNoDalamud && App.Settings.IsDx11)
+            if (App.Settings.InGameAddonEnabled && !forceNoDalamud)
             {
                 try
                 {
@@ -1148,7 +1163,6 @@ namespace XIVLauncher.Windows.ViewModel
                 isSteam,
                 App.Settings.AdditionalLaunchArgs,
                 App.Settings.GamePath,
-                App.Settings.IsDx11,
                 App.Settings.Language.GetValueOrDefault(ClientLanguage.English),
                 App.Settings.EncryptArguments.GetValueOrDefault(false),
                 App.Settings.DpiAwareness.GetValueOrDefault(DpiAwareness.Unaware));
@@ -1222,25 +1236,40 @@ namespace XIVLauncher.Windows.ViewModel
 
         private void PersistAccount(string username, string password)
         {
-            if (AccountManager.CurrentAccount != null && AccountManager.CurrentAccount.UserName.Equals(username) &&
-                AccountManager.CurrentAccount.Password != password &&
-                AccountManager.CurrentAccount.SavePassword)
-                AccountManager.UpdatePassword(AccountManager.CurrentAccount, password);
-
-            if (AccountManager.CurrentAccount == null ||
-                AccountManager.CurrentAccount.Id != $"{username}-{IsOtp}-{IsSteam}")
+            try
             {
-                var accountToSave = new XivAccount(username)
+                if (AccountManager.CurrentAccount != null && AccountManager.CurrentAccount.UserName.Equals(username, StringComparison.Ordinal) &&
+                    AccountManager.CurrentAccount.Password != password &&
+                    AccountManager.CurrentAccount.SavePassword)
+                    AccountManager.UpdatePassword(AccountManager.CurrentAccount, password);
+
+                if (AccountManager.CurrentAccount == null ||
+                    AccountManager.CurrentAccount.Id != $"{username}-{IsOtp}-{IsSteam}")
                 {
-                    Password = password,
-                    SavePassword = true,
-                    UseOtp = IsOtp,
-                    UseSteamServiceAccount = IsSteam
-                };
+                    var accountToSave = new XivAccount(username)
+                    {
+                        Password = password,
+                        SavePassword = true,
+                        UseOtp = IsOtp,
+                        UseSteamServiceAccount = IsSteam
+                    };
 
-                AccountManager.AddAccount(accountToSave);
+                    AccountManager.AddAccount(accountToSave);
 
-                AccountManager.CurrentAccount = accountToSave;
+                    AccountManager.CurrentAccount = accountToSave;
+                }
+            }
+            catch (Win32Exception ex)
+            {
+                CustomMessageBox.Builder
+                                .NewFrom(Loc.Localize("PersistAccountError",
+                                                      "XIVLauncher could not save your account information. This is likely caused by having too many saved accounts in the Windows Credential Manager.\nPlease try removing some of them."))
+                                .WithAppendDescription(ex.ToString())
+                                .WithShowHelpLinks()
+                                .WithImage(MessageBoxImage.Warning)
+                                .WithButtons(MessageBoxButton.OK)
+                                .WithParentWindow(_window)
+                                .Show();
             }
         }
 

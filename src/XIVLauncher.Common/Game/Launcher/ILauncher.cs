@@ -16,8 +16,8 @@ public interface ILauncher
     public Task<LoginResult> Login(string userName, string password, string otp, bool useCache, DirectoryInfo gamePath, bool forceBaseVersion, bool isFreeTrial);
 
     public Process? LaunchGame(IGameRunner runner, string sessionId, int region, int expansionLevel,
-                              string additionalArguments, DirectoryInfo gamePath, bool isDx11,
-                              ClientLanguage language, bool encryptArguments, DpiAwareness dpiAwareness);
+                               string additionalArguments, DirectoryInfo gamePath,
+                               ClientLanguage language, bool encryptArguments, DpiAwareness dpiAwareness);
 
     public Task<GateStatus> GetGateStatus(ClientLanguage language);
 

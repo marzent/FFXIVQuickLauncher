@@ -255,7 +255,6 @@ public static class LaunchServices
             loginResult.OauthLogin.MaxExpansion,
             gameArgs,
             Program.Config.GamePath,
-            Program.Config.IsDx11 ?? true,
             Program.Config.ClientLanguage.GetValueOrDefault(ClientLanguage.English),
             Program.Config.IsEncryptArgs.GetValueOrDefault(true),
             DpiAwareness.Unaware);

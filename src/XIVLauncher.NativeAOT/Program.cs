@@ -143,7 +143,7 @@ public class Program
     }
 
     [UnmanagedCallersOnly(EntryPoint = "loadConfig")]
-    public static void LoadConfig(nint acceptLanguage, nint gamePath, nint gameConfigPath, byte clientLanguage, bool isDx11, bool isEncryptArgs, bool isFt, byte license, nint patchPath,
+    public static void LoadConfig(nint acceptLanguage, nint gamePath, nint gameConfigPath, byte clientLanguage, bool isEncryptArgs, bool isFt, byte license, nint patchPath,
                                   byte patchAcquisitionMethod, long patchSpeedLimit, byte dalamudLoadMethod, int dalamudLoadDelay, bool isAutoLogin, bool isHiDpi)
     {
         Config = new LauncherConfig
@@ -154,7 +154,6 @@ public class Program
             GameConfigPath = new DirectoryInfo(Marshal.PtrToStringUTF8(gameConfigPath)!),
             ClientLanguage = (ClientLanguage)clientLanguage,
 
-            IsDx11 = isDx11,
             IsEncryptArgs = isEncryptArgs,
             License = (License)license,
             IsFt = isFt,
@@ -180,7 +179,7 @@ public class Program
         else
             gameRunner = new UnixGameRunner(Program.CompatibilityTools, null, false);
 
-        Launcher!.LaunchGame(gameRunner, "0", 1, 2, "", Program.Config!.GamePath!, true, ClientLanguage.Japanese, true, DpiAwareness.Unaware);
+        Launcher!.LaunchGame(gameRunner, "0", 1, 2, "", Program.Config!.GamePath!, ClientLanguage.Japanese, true, DpiAwareness.Unaware);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "tryLoginToGame")]
