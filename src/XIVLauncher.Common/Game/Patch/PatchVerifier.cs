@@ -125,6 +125,12 @@ namespace XIVLauncher.Common.Game.Patch
 
             [JsonPropertyName("ex4Revision")]
             public int Ex4Revision { get; set; }
+
+            [JsonPropertyName("ex5")]
+            public string Ex5 { get; set; }
+
+            [JsonPropertyName("ex5Revision")]
+            public int Ex5Revision { get; set; }
         }
 
         public VerifyState State { get; private set; } = VerifyState.NotStarted;
@@ -194,12 +200,10 @@ namespace XIVLauncher.Common.Game.Patch
         private bool AdminAccessRequired(string gameRootPath)
         {
             string tempFn;
-
             do
             {
                 tempFn = Path.Combine(gameRootPath, Guid.NewGuid().ToString());
             } while (File.Exists(tempFn));
-
             try
             {
                 File.WriteAllText(tempFn, "");
@@ -209,7 +213,6 @@ namespace XIVLauncher.Common.Game.Patch
             {
                 return true;
             }
-
             return false;
         }
 
@@ -350,8 +353,7 @@ namespace XIVLauncher.Common.Game.Patch
 
                             foreach (var metaPath in _repoMetaPaths)
                             {
-                                var patchIndex = new IndexedZiPatchIndex(
-                                    new BinaryReader(new DeflateStream(new FileStream(metaPath.Value, FileMode.Open, FileAccess.Read), CompressionMode.Decompress)));
+                                var patchIndex = new IndexedZiPatchIndex(new BinaryReader(new DeflateStream(new FileStream(metaPath.Value, FileMode.Open, FileAccess.Read), CompressionMode.Decompress)));
                                 var adjustedGamePath = patchIndex.ExpacVersion == IndexedZiPatchIndex.EXPAC_VERSION_BOOT ? bootPath : gamePath;
 
                                 foreach (var target in patchIndex.Targets)
@@ -384,7 +386,6 @@ namespace XIVLauncher.Common.Game.Patch
 
                                     var fileBroken = new bool[patchIndex.Length].ToList();
                                     var repaired = false;
-
                                     for (var attemptIndex = 0; attemptIndex < REATTEMPT_COUNT; attemptIndex++)
                                     {
                                         CurrentMetaInstallState = IndexedZiPatchInstaller.InstallTaskState.NotStarted;
@@ -414,7 +415,6 @@ namespace XIVLauncher.Common.Game.Patch
 
                                         await indexedZiPatchIndexInstaller.SetTargetStreamsFromPathReadWriteForMissingFiles(adjustedGamePath).ConfigureAwait(false);
                                         var prefix = patchIndex.ExpacVersion == IndexedZiPatchIndex.EXPAC_VERSION_BOOT ? "boot:" : $"ex{patchIndex.ExpacVersion}:";
-
                                         for (var i = 0; i < patchIndex.Sources.Count; i++)
                                         {
                                             var patchSourceKey = prefix + patchIndex.Sources[i];
@@ -435,7 +435,6 @@ namespace XIVLauncher.Common.Game.Patch
                                         }
 
                                         CurrentMetaInstallState = IndexedZiPatchInstaller.InstallTaskState.Connecting;
-
                                         try
                                         {
                                             await indexedZiPatchIndexInstaller.Install(MAX_CONCURRENT_CONNECTIONS_FOR_PATCH_SET, _cancellationTokenSource.Token).ConfigureAwait(false);
@@ -454,7 +453,6 @@ namespace XIVLauncher.Common.Game.Patch
                                     await indexedZiPatchIndexInstaller.WriteVersionFiles(adjustedGamePath).ConfigureAwait(false);
 
                                     NumBrokenFiles += fileBroken.Count(x => x);
-
                                     PatchSetIndex++;
                                 }
                                 finally
@@ -463,7 +461,7 @@ namespace XIVLauncher.Common.Game.Patch
                                     indexedZiPatchIndexInstaller.OnInstallProgress -= UpdateInstallProgress;
                                 }
                             }
-                            
+
                             await MoveUnnecessaryFiles(indexedZiPatchIndexInstaller, gamePath, targetRelativePaths);
 
                             State = VerifyState.Done;
@@ -489,7 +487,6 @@ namespace XIVLauncher.Common.Game.Patch
                 {
                     Log.Error(ex, "Unexpected error occurred in RunVerifier");
                     Log.Information("_patchSources had following:");
-
                     foreach (var kvp in _patchSources)
                     {
                         Log.Information("* \"{0}\" = {1} / {2}({3})", kvp.Key, kvp.Value.Uri.ToString(), kvp.Value.FileInfo.FullName, kvp.Value.FileInfo.Exists ? "Exists" : "Nonexistent");
@@ -548,6 +545,11 @@ namespace XIVLauncher.Common.Game.Patch
             _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
             PatchSetIndex++;
+            if (_maxExpansionToCheck >= 5)
+                await this.GetRepoMeta(Repository.Ex5, latestVersion.Ex5, metaFolder, latestVersion.Ex5Revision).ConfigureAwait(false);
+            _cancellationTokenSource.Token.ThrowIfCancellationRequested();
+
+            PatchSetIndex++;
         }
 
         private async Task GetRepoMeta(Repository repo, string latestVersion, string baseDir, int patchIndexFileRevision)
@@ -601,7 +603,6 @@ namespace XIVLauncher.Common.Game.Patch
                             await targetStream.WriteAsync(buffer.Buffer, 0, read, _cancellationTokenSource.Token).ConfigureAwait(false);
                         }
                     }
-
                     complete = true;
                 }
                 finally

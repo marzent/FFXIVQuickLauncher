@@ -18,7 +18,6 @@ using XIVLauncher.Accounts;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.Game;
-using XIVLauncher.Common.Game.Launcher;
 using XIVLauncher.Common.Game.Patch.Acquisition;
 using XIVLauncher.Common.Util;
 using XIVLauncher.Support;
@@ -53,13 +52,14 @@ namespace XIVLauncher.Windows
         private AccountManager _accountManager;
 
         private MainWindowViewModel Model => this.DataContext as MainWindowViewModel;
-        private ILauncher Launcher => Model.Launcher;
+        private readonly Launcher _launcher;
 
         public MainWindow()
         {
             InitializeComponent();
 
             this.DataContext = new MainWindowViewModel(this);
+            _launcher = Model.Launcher;
 
             Closed += Model.OnWindowClosed;
             Closing += Model.OnWindowClosing;
@@ -122,12 +122,12 @@ namespace XIVLauncher.Windows
             {
                 _bannerChangeTimer?.Stop();
 
-                await Headlines.GetWorlds(Launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
-                _banners = await Headlines.GetBanners(Launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.ForceNorthAmerica.GetValueOrDefault(false))
+                await Headlines.GetWorlds(_launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
+                _banners = await Headlines.GetBanners(_launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.ForceNorthAmerica.GetValueOrDefault(false))
                                           .ConfigureAwait(false);
-                await Headlines.GetMessage(Launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.ForceNorthAmerica.GetValueOrDefault(false))
+                await Headlines.GetMessage(_launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.ForceNorthAmerica.GetValueOrDefault(false))
                                .ConfigureAwait(false);
-                _headlines = await Headlines.GetNews(Launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.ForceNorthAmerica.GetValueOrDefault(false))
+                _headlines = await Headlines.GetNews(_launcher, App.Settings.Language.GetValueOrDefault(ClientLanguage.English), App.Settings.ForceNorthAmerica.GetValueOrDefault(false))
                                             .ConfigureAwait(false);
 
                 _bannerBitmaps = new BitmapImage[_banners.Count];
@@ -135,7 +135,7 @@ namespace XIVLauncher.Windows
 
                 for (var i = 0; i < _banners.Count; i++)
                 {
-                    var imageBytes = await Launcher.DownloadAsLauncher(_banners[i].LsbBanner.ToString(), App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
+                    var imageBytes = await _launcher.DownloadAsLauncher(_banners[i].LsbBanner.ToString(), App.Settings.Language.GetValueOrDefault(ClientLanguage.English));
 
                     using var stream = new MemoryStream(imageBytes);
 
@@ -441,13 +441,13 @@ namespace XIVLauncher.Windows
 
         private async void OnMaintenanceQueueTimerEvent(Object source, System.Timers.ElapsedEventArgs e)
         {
-            var bootPatches = await Launcher.CheckBootVersion(App.Settings.GamePath);
+            var bootPatches = await _launcher.CheckBootVersion(App.Settings.GamePath);
 
             var gateStatus = false;
 
             try
             {
-                gateStatus = Task.Run(() => Launcher.GetGateStatus(App.Settings.Language.GetValueOrDefault(ClientLanguage.English))).Result.Status;
+                gateStatus = Task.Run(() => _launcher.GetGateStatus(App.Settings.Language.GetValueOrDefault(ClientLanguage.English))).Result.Status;
             }
             catch
             {
@@ -456,7 +456,7 @@ namespace XIVLauncher.Windows
 
             if (gateStatus || bootPatches != null)
             {
-                if (bootPatches.Length > 0)
+                if (bootPatches != null)
                 {
                     CustomMessageBox.Show(Loc.Localize("MaintenanceQueueBootPatch",
                         "A patch for the official launcher was detected.\nThis usually means that there is a patch for the game as well.\n\nYou will now be logged in."), "XIVLauncher", parentWindow: this);
@@ -555,9 +555,9 @@ namespace XIVLauncher.Windows
 
         private void FakeStart_OnClick(object sender, RoutedEventArgs e)
         {
-            _ = Model.StartGameAndAddon(new LoginResult
+            _ = Model.StartGameAndAddon(new Launcher.LoginResult
             {
-                OauthLogin = new OauthLoginResult
+                OauthLogin = new Launcher.OauthLoginResult
                 {
                     MaxExpansion = 4,
                     Playable = true,
@@ -565,7 +565,7 @@ namespace XIVLauncher.Windows
                     SessionId = "0",
                     TermsAccepted = true
                 },
-                State = LoginState.Ok,
+                State = Launcher.LoginState.Ok,
                 UniqueId = "0"
             }, false, false, false, false).ConfigureAwait(false);
         }

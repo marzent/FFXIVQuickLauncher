@@ -64,7 +64,7 @@ public class SqexLauncher : ILauncher
         };
 #endif
 
-        client = new HttpClient(handler);
+        this.client = new HttpClient(handler);
     }
 
 
@@ -211,6 +211,9 @@ public class SqexLauncher : ILauncher
         if (exLevel >= 4)
             verReport += $"ex4\t{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ex4.GetVer(gamePath))}\n";
 
+        if (exLevel >= 5)
+            verReport += $"ex5\t{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ex5.GetVer(gamePath))}\n";
+
         return verReport;
     }
 
@@ -248,6 +251,12 @@ public class SqexLauncher : ILauncher
             failed |= IsBadVersionSanity(gamePath, Repository.Ex4, true);
         }
 
+        if (exLevel >= 5)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex5);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex5, true);
+        }
+
         if (failed)
             throw new InvalidVersionFilesException();
     }
@@ -262,7 +271,7 @@ public class SqexLauncher : ILauncher
 
         if (nullOrWhitespace || containsNewline || allNullBytes)
         {
-            Log.Error("Sanity check failed for {repo}/{isBck}: {NullOrWhitespace}, {ContainsNewline}, {AllNullBytes}", repo, isBck, nullOrWhitespace, containsNewline, allNullBytes);
+            Log.Error("Sanity check failed for {Repo}/{IsBck}: {NullOrWhitespace}, {ContainsNewline}, {AllNullBytes}", repo, isBck, nullOrWhitespace, containsNewline, allNullBytes);
             return true;
         }
 
@@ -302,7 +311,7 @@ public class SqexLauncher : ILauncher
         var resp = await this.client.SendAsync(request);
         var text = await resp.Content.ReadAsStringAsync();
 
-        if (text == string.Empty)
+        if (string.IsNullOrWhiteSpace(text))
             return Array.Empty<PatchListEntry>();
 
         Log.Verbose("Boot patching is needed... List:\n{PatchList}", resp);
@@ -339,7 +348,19 @@ public class SqexLauncher : ILauncher
         var resp = await this.client.SendAsync(request);
         var text = await resp.Content.ReadAsStringAsync();
 
-        // Conflict indicates that boot needs to update, we do not get a patch list or a unique ID to download patches with in this case
+        /*
+         * Conflict indicates that boot needs to update, we do not get a patch list or a unique ID to download patches with in this case.
+         * This means that server requested us to patch Boot, even though in order to get to this place, we just checked for boot patches.
+         *
+         * In turn, that means that something or someone modified boot binaries without our involvement.
+         * We have no way to go back to a "known" good state other than to do a full reinstall.
+         *
+         * This has happened multiple times with users that have viruses that infect other EXEs and change their hashes, causing the update
+         * server to reject our boot hashes.
+         *
+         * In the future we may be able to just delete /boot and run boot patches again, but this doesn't happen often enough to warrant the
+         * complexity and if boot is broken, the game probably is too.
+         */
         if (resp.StatusCode == HttpStatusCode.Conflict)
             throw new VersionCheckLoginException(LoginState.NeedsPatchBoot);
 
@@ -446,7 +467,7 @@ public class SqexLauncher : ILauncher
         request.Headers.AddWithoutValidation("Cookie", "_rsid=\"\"");
 
         request.Content = new FormUrlEncodedContent(
-            new Dictionary<string, string>()
+            new Dictionary<string, string>
             {
                 { "_STORED_", stored },
                 { "sqexid", userName },
@@ -585,5 +606,3 @@ public class SqexLauncher : ILauncher
         return string.Format(USER_AGENT_TEMPLATE, MakeComputerId());
     }
 }
-
-#nullable restore
