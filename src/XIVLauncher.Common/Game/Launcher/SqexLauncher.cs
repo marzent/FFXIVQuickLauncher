@@ -46,23 +46,10 @@ public class SqexLauncher : ILauncher
 
         ServicePointManager.Expect100Continue = false;
 
-#if NET6_0_OR_GREATER && !WIN32
-        var sslOptions = new SslClientAuthenticationOptions()
-        {
-            CipherSuitesPolicy = new CipherSuitesPolicy(new[] { TlsCipherSuite.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 })
-        };
-
-        var handler = new SocketsHttpHandler
-        {
-            UseCookies = false,
-            SslOptions = sslOptions,
-        };
-#else
         var handler = new HttpClientHandler
         {
             UseCookies = false,
         };
-#endif
 
         this.client = new HttpClient(handler);
     }
@@ -301,8 +288,9 @@ public class SqexLauncher : ILauncher
 
     public async Task<PatchListEntry[]> CheckBootVersion(DirectoryInfo gamePath, bool forceBaseVersion = false)
     {
+        var bootVersion = forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Boot.GetVer(gamePath);
         var request = new HttpRequestMessage(HttpMethod.Get,
-                                             $"http://patch-bootver.ffxiv.com/http/win32/ffxivneo_release_boot/{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Boot.GetVer(gamePath))}/?time=" +
+                                             $"http://patch-bootver.ffxiv.com/http/win32/ffxivneo_release_boot/{bootVersion}/?time=" +
                                              GetLauncherFormattedTimeLongRounded());
 
         request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);

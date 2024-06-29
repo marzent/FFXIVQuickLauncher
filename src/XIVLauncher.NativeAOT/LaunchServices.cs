@@ -294,7 +294,7 @@ public static class LaunchServices
     {
         Log.Information("STARTING REPAIR");
 
-        using var verify = new PatchVerifier(CommonSettings.Instance, loginResult, 20, loginResult.OauthLogin.MaxExpansion, false);
+        using var verify = new PatchVerifier(CommonSettings.Instance, loginResult, TimeSpan.FromMilliseconds(20), loginResult.OauthLogin.MaxExpansion, false);
         CurrentPatchVerifier = verify;
         verify.Start();
         await verify.WaitForCompletion().ConfigureAwait(false);

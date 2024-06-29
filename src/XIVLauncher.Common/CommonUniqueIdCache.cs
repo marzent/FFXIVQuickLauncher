@@ -14,7 +14,7 @@ namespace XIVLauncher.PlatformAbstractions
 
         private List<UniqueIdCacheEntry> _cache;
 
-        public CommonUniqueIdCache(FileInfo saveFile)
+        public CommonUniqueIdCache(FileInfo? saveFile)
         {
             this.configFile = saveFile;
 
@@ -23,15 +23,21 @@ namespace XIVLauncher.PlatformAbstractions
 
         #region SaveLoad
 
-        private readonly FileInfo configFile;
+        private readonly FileInfo? configFile;
 
         public void Save()
         {
+            if (configFile is null)
+                return;
+            
             File.WriteAllText(configFile.FullName, JsonSerializer.Serialize(_cache, UniqueIdCacheEntryJsonContext.Default.ListUniqueIdCacheEntry));
         }
 
         public void Load()
         {
+            if (configFile is null)
+                return;
+
             if (!File.Exists(configFile.FullName))
             {
                 _cache = new List<UniqueIdCacheEntry>();

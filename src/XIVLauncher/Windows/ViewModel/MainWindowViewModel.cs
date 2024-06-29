@@ -301,7 +301,10 @@ namespace XIVLauncher.Windows.ViewModel
             if (otp != null)
                 AccountManager.UpdateLastSuccessfulOtp(AccountManager.CurrentAccount, otp);
 
-            Log.Verbose($"[LR] {loginResult.State} {loginResult.PendingPatches.Length} {loginResult.OauthLogin?.Playable}");
+            Log.Verbose("[LR] {State} {NumPatches} {Playable}",
+                        loginResult.State,
+                        loginResult.PendingPatches.Length,
+                        loginResult.OauthLogin?.Playable);
 
             if (await TryProcessLoginResult(loginResult, isSteam, action).ConfigureAwait(false))
             {
@@ -927,7 +930,7 @@ namespace XIVLauncher.Windows.ViewModel
                     }))
                     return false;
 
-                using var verify = new PatchVerifier(CommonSettings.Instance, loginResult, 20, loginResult.OauthLogin.MaxExpansion);
+                using var verify = new PatchVerifier(CommonSettings.Instance, loginResult, TimeSpan.FromMilliseconds(100), loginResult.OauthLogin.MaxExpansion);
 
                 Hide();
                 IsEnabled = false;
