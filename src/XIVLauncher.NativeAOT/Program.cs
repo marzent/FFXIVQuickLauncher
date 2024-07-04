@@ -67,31 +67,6 @@ public class Program
         Log.Information("Starting a session({AppName})", AppName);
         Task.Run(Troubleshooting.LogTroubleshooting);
 
-        try
-        {
-            Steam = Environment.OSVersion.Platform switch
-            {
-                PlatformID.Win32NT => new WindowsSteam(),
-                PlatformID.Unix => new UnixSteam(),
-                _ => throw new PlatformNotSupportedException()
-            };
-
-            try
-            {
-                var appId = Config!.IsFt == true ? STEAM_APP_ID_FT : STEAM_APP_ID;
-                Steam.Initialize(appId);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Couldn't init Steam with game AppIds");
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Steam couldn't load");
-            Troubleshooting.LogException(ex, "Steam couldn't load");
-        }
-
         var dalamudLoadInfo = new DalamudOverlayInfoProxy();
         DalamudUpdater = new DalamudUpdater(Storage.GetFolder("dalamud"), Storage.GetFolder("runtime"), Storage.GetFolder("dalamudAssets"), Storage.Root, null, "Control")
         {
@@ -167,6 +142,35 @@ public class Program
             DalamudLoadMethod = (DalamudLoadMethod)dalamudLoadMethod,
             DalamudLoadDelay = dalamudLoadDelay
         };
+
+        // only load Steam if we are using a Steam license
+        if (Config!.License! == License.Steam && Steam == null)
+        {
+            try
+            {
+                Steam = Environment.OSVersion.Platform switch
+                {
+                    PlatformID.Win32NT => new WindowsSteam(),
+                    PlatformID.Unix => new UnixSteam(),
+                    _ => throw new PlatformNotSupportedException()
+                };
+
+                try
+                {
+                    var appId = Config!.IsFt == true ? STEAM_APP_ID_FT : STEAM_APP_ID;
+                    Steam.Initialize(appId);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Couldn't init Steam with game AppIds");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Steam couldn't load");
+                Troubleshooting.LogException(ex, "Steam couldn't load");
+            }
+        }
     }
 
     [UnmanagedCallersOnly(EntryPoint = "fakeLogin")]
