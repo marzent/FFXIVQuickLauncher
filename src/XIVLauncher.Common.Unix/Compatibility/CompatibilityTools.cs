@@ -228,6 +228,7 @@ public class CompatibilityTools
             try
             {
                 logWriter.WriteLine(errLine.Data);
+                logWriter.Flush();
                 Console.Error.WriteLine(errLine.Data);
             }
             catch (Exception ex) when (ex is ArgumentOutOfRangeException ||
