@@ -67,6 +67,7 @@ public class Program
         Log.Information("Starting a session({AppName})", AppName);
         Task.Run(Troubleshooting.LogTroubleshooting);
 
+
         try
         {
             Steam = Environment.OSVersion.Platform switch
@@ -76,14 +77,17 @@ public class Program
                 _ => throw new PlatformNotSupportedException()
             };
 
-            try
+            if (Config!.License! == License.Steam)
             {
-                var appId = Config!.IsFt == true ? STEAM_APP_ID_FT : STEAM_APP_ID;
-                Steam.Initialize(appId);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Couldn't init Steam with game AppIds");
+                try
+                {
+                    var appId = Config!.IsFt == true ? STEAM_APP_ID_FT : STEAM_APP_ID;
+                    Steam.Initialize(appId);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Couldn't init Steam with game AppIds");
+                }
             }
         }
         catch (Exception ex)
