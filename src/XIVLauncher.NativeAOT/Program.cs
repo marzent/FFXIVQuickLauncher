@@ -474,12 +474,18 @@ public class Program
         {
             var compressedPath = Marshal.PtrToStringUTF8(compressedFilePath)!;
             var extractionPath = Marshal.PtrToStringUTF8(destinationDirectory)!;
-            const int BUFFER_SIZE = 65536;
-            using var compressedFileStream = new FileStream(compressedPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: BUFFER_SIZE, useAsync: true);
-            using var gzipStream = new GZipStream(compressedFileStream, CompressionMode.Decompress);
-            using var bufferedStream = new BufferedStream(gzipStream, bufferSize: BUFFER_SIZE);
+            using var compressedFileStream = new FileStream(compressedPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var xorStream = new MemoryStream();
+            int byteValue;
 
-            TarFile.ExtractToDirectory(bufferedStream, extractionPath, overwriteFiles: true);
+            while ((byteValue = compressedFileStream.ReadByte()) != -1)
+                xorStream.WriteByte((byte)(byteValue ^ 0xFF));
+
+            xorStream.Seek(0, SeekOrigin.Begin);
+
+            using var gzipStream = new GZipStream(xorStream, CompressionMode.Decompress);
+
+            TarFile.ExtractToDirectory(gzipStream, extractionPath, overwriteFiles: true);
             return 0;
         }
         catch (AggregateException ex)
