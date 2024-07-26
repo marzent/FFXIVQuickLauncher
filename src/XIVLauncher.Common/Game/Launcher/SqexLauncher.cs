@@ -9,10 +9,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 
-#if NET6_0_OR_GREATER && !WIN32
-using System.Net.Security;
-#endif
-
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
