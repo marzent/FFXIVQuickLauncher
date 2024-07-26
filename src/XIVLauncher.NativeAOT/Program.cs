@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Formats.Tar;
+using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MarshalUTF8Extensions;
@@ -462,6 +464,39 @@ public class Program
         {
             Log.Warning(ex, "Rosetta does not appear to be installed");
             return false;
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "extractTarGzip")]
+    public static int ExtractTarGzip(nint compressedFilePath, nint destinationDirectory)
+    {
+        try
+        {
+            var compressedPath = Marshal.PtrToStringUTF8(compressedFilePath)!;
+            var extractionPath = Marshal.PtrToStringUTF8(destinationDirectory)!;
+            const int BUFFER_SIZE = 65536;
+            using var compressedFileStream = new FileStream(compressedPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: BUFFER_SIZE, useAsync: true);
+            using var gzipStream = new GZipStream(compressedFileStream, CompressionMode.Decompress);
+            using var bufferedStream = new BufferedStream(gzipStream, bufferSize: BUFFER_SIZE);
+
+            TarFile.ExtractToDirectory(bufferedStream, extractionPath, overwriteFiles: true);
+            return 0;
+        }
+        catch (AggregateException ex)
+        {
+            foreach (var iex in ex.InnerExceptions)
+            {
+                Log.Error(iex, "An error during archive extraction has occured");
+                Troubleshooting.LogException(ex, "An error during archive extraction has occured");
+            }
+
+            return -1;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error during archive extraction has occured");
+            Troubleshooting.LogException(ex, "An error during archive extraction has occured");
+            return -1;
         }
     }
 }
