@@ -435,6 +435,21 @@ public class Program
         }
     }
 
+    [UnmanagedCallersOnly(EntryPoint = "getUnixProcessId")]
+    public static int GetUnixProcessId(int winePid)
+    {
+        try
+        {
+            return CompatibilityTools!.GetUnixProcessId(winePid);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occured getting the unix process id");
+            Troubleshooting.LogException(ex, "An error occured getting the unix process id");
+            return 0;
+        }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "killWine")]
     public static void KillWine()
     {
