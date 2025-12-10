@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -10,6 +9,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Serilog;
 using XIVLauncher.Common.Http;
+using XIVLauncher.Common.Util;
 using XIVLauncher.Windows.ViewModel;
 
 namespace XIVLauncher.Windows
@@ -39,6 +39,7 @@ namespace XIVLauncher.Windows
             MouseMove += OtpInputDialog_OnMouseMove;
             Activated += (_, _) => OtpTextBox.Focus();
             GotFocus += (_, _) => OtpTextBox.Focus();
+            Topmost = App.Settings.OtpAlwaysOnTopEnabled;
         }
 
         public new bool? ShowDialog()
@@ -178,7 +179,7 @@ namespace XIVLauncher.Windows
 
         public void OpenShortcutInfo_MouseUp(object sender, RoutedEventArgs e)
         {
-            Process.Start($"https://goatcorp.github.io/faq/mobile_otp");
+            PlatformHelpers.OpenBrowser($"https://goatcorp.github.io/faq/mobile_otp");
         }
 
         public static string AskForOtp(Action<OtpInputDialog, string> onOtpResult, Window parentWindow)

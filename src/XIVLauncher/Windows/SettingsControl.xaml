@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="XIVLauncher.Windows.SettingsControl"
+<UserControl x:Class="XIVLauncher.Windows.SettingsControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -9,15 +9,23 @@
              xmlns:components="clr-namespace:XIVLauncher.Xaml.Components"
              xmlns:viewModel="clr-namespace:XIVLauncher.Windows.ViewModel"
              xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             xmlns:xaml="clr-namespace:XIVLauncher.Xaml"
+             xmlns:materialDesignAssist="http://materialdesigninxaml.net/winfx/xaml/controls"
+             xmlns:themes="clr-namespace:Dragablz.Themes;assembly=Dragablz"
              mc:Ignorable="d"
              TextElement.Foreground="{DynamicResource MaterialDesignBody}"
              Background="{DynamicResource MaterialDesignPaper}"
              TextElement.FontWeight="Medium"
              FontFamily="pack://application:,,,/MaterialDesignThemes.Wpf;component/Resources/Roboto/#Roboto"
              d:DataContext="{d:DesignInstance viewModel:SettingsControlViewModel}">
+    <UserControl.Resources>
+        <Style x:Key="WhiteIndicatorTabItemStyle" TargetType="dragablz:DragablzItem" BasedOn="{StaticResource MaterialDesignDragableTabItemStyle}">
+            <Setter Property="themes:MaterialDesignAssist.IndicatorBrush" Value="White" />
+        </Style>
+    </UserControl.Resources>
     <Grid>
-        <dragablz:TabablzControl IsEnabled="True" FixedHeaderCount="7" x:Name="SetupTabControl"
-                                 Style="{StaticResource MaterialDesignTabablzControlStyle}">
+        <dragablz:TabablzControl IsEnabled="True" FixedHeaderCount="7" Style="{StaticResource MaterialDesignTabablzControlStyle}"
+        ItemContainerStyle="{StaticResource WhiteIndicatorTabItemStyle}" BorderThickness="0">
             <TabItem Header="{Binding SettingsGameLoc}">
                 <StackPanel Margin="10,10,0,0">
                     <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -37,7 +45,7 @@
                     <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top"
                                Foreground="Red" Text="{Binding GamePathSafeguardLoc}" x:Name="GamePathSafeguardText" Visibility="Collapsed"/>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                         <CheckBox Foreground="{DynamicResource MaterialDesignBody}"
                                   x:Name="OtpServerCheckBox" Content="{Binding OtpServerCheckBoxLoc}" ToolTip="{Binding OtpServerTooltipLoc}"/>
                         <Button Style="{DynamicResource MaterialDesignFlatButton}"
@@ -53,11 +61,14 @@
                     </StackPanel>
 
                     <CheckBox Foreground="{DynamicResource MaterialDesignBody}"
-                              x:Name="AutoStartSteamCheckBox" Margin="0,15,0,0" Content="{Binding AutoStartSteamLoc}" ToolTip="{Binding AutoStartSteamTooltipLoc}" />
+                            x:Name="OtpAlwaysOnTopCheckBox" Margin="0,3,0,0" Content="{Binding OtpAlwaysOnTopCheckBoxLoc}" ToolTip="{Binding OtpAlwaysOnTopTooltipLoc}" />
+
+                    <CheckBox Foreground="{DynamicResource MaterialDesignBody}"
+                              x:Name="AutoStartSteamCheckBox" Margin="0,10,0,0" Content="{Binding AutoStartSteamLoc}" ToolTip="{Binding AutoStartSteamTooltipLoc}" />
                     
                     <TextBox Width="500" VerticalAlignment="Center"
                              HorizontalAlignment="Left" Foreground="{DynamicResource MaterialDesignBody}"
-                             Margin="0,10,0,0" x:Name="LaunchArgsTextBox" materialDesign:HintAssist.Hint="{Binding AdditionalArgumentsLoc}" materialDesign:HintAssist.IsFloating="True"/>
+                             Margin="0,4,0,0" x:Name="LaunchArgsTextBox" materialDesign:HintAssist.Hint="{Binding AdditionalArgumentsLoc}" materialDesign:HintAssist.IsFloating="True"/>
 
                     <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0, 20, 0, 0"
                                Foreground="{DynamicResource MaterialDesignBody}" Text="{Binding ChooseDpiAwarenessLoc}" />
@@ -155,7 +166,7 @@
             <TabItem Header="{Binding SettingsInGameLoc}">
                 <Grid>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="10,5,10,0">
+                        <StackPanel Margin="10,10,10,0">
                             <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top"
                                        Foreground="{DynamicResource MaterialDesignBody}"
                                        Text="{Binding InGameAddonDescriptionLoc}" />
@@ -171,29 +182,31 @@
                                 <TextBlock Foreground="DarkGray" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,2,0,0"
                                            Text="{Binding InGameAddonCommandHintLoc}" />
                             </StackPanel>
+                            
+                            <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,10,0,0"
+                                       Foreground="{DynamicResource MaterialDesignBody}"
+                                       Text="{Binding InGameAddonBranchSwitcherDescriptionLoc}" />
+                            
+                            <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,5,0,0"
+                                       Foreground="DarkGray"
+                                       Text="{Binding InGameAddonBranchSwitcherCurrentBranchLoc}" />
 
-                            <StackPanel Margin="22,0,0,0"
-                                        IsEnabled="{Binding ElementName=EnableHooksCheckBox, Path=IsChecked}">
-
-                                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="{DynamicResource MaterialDesignBody}" Margin="0,0,0,0"
-                                           Text="{Binding InGameAddonInjectionDelayLoc}" />
-
-                                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                    <xctk:DecimalUpDown x:Name="InjectionDelayUpDown" Width="60" HorizontalAlignment="Left" Value="0"/>
-                                    <Label Foreground="{DynamicResource MaterialDesignBody}"
-                                           Content="ms" ToolTip="{Binding InGameAddonInjectionDelayDescriptionLoc}"/>
-                                </StackPanel>
-
-                                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,15,0,5"
-                                           Foreground="{DynamicResource MaterialDesignBody}" Text="{Binding InGameAddonLoadMethodLoc}" />
-
-                                <RadioButton GroupName="dalamudLoadMethod" x:Name="EntryPointDalamudLoadMethodRadioButton"
-                                             Foreground="{DynamicResource MaterialDesignBody}" IsChecked="True"
-                                             Content="{Binding InGameAddonLoadMethodEntryPointLoc}" ToolTip="{Binding InGameAddonLoadMethodEntryPointDescriptionLoc}"/>
-                                <RadioButton GroupName="dalamudLoadMethod" x:Name="DllInjectDalamudLoadMethodRadioButton"
-                                             Foreground="{DynamicResource MaterialDesignBody}"
-                                             Content="{Binding InGameAddonLoadMethodDllInjectLoc}" ToolTip="{Binding InGameAddonLoadMethodDllInjectDescriptionLoc}" />
-                            </StackPanel>
+                            <TextBlock x:Name="DalamudBranchTextBlock" Margin="22,0,0,0" VerticalAlignment="Top"
+                                       Foreground="DarkGray" Text="" />
+                            
+                            <Border BorderBrush="{DynamicResource MaterialDesign.Brush.Primary}" BorderThickness="2" CornerRadius="4" Margin="10, 10, 0, 10" HorizontalAlignment="Left">
+                                <Button Style="{DynamicResource MaterialDesignFlatButton}"
+                                        HorizontalAlignment="Center"
+                                        Click="OpenDalamudBranchSwitcher_OnClick">
+                                    <Button.ToolTip>
+                                        <TextBlock Text="{Binding OpenDalamudBranchSwitcherTipLoc}" />
+                                    </Button.ToolTip>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Margin="0 0 0 0" VerticalAlignment="Center"
+                                                   Foreground="DarkGray" FontSize="12" Text="{Binding OpenDalamudBranchSwitcherLoc}"/>
+                                    </StackPanel>
+                                </Button>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
@@ -215,10 +228,8 @@
                     <Label HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="{DynamicResource MaterialDesignBody}" Margin="5,10,0,0"
                            Content="{Binding PatchSpeedLimitLoc}" />
 
-                    <StackPanel Orientation="Horizontal">
-                        <xctk:DecimalUpDown x:Name="SpeedLimiterUpDown" Margin="10,0,0,0" Width="60" HorizontalAlignment="Left" Value="0"/>
-                        <Label Foreground="{DynamicResource MaterialDesignBody}" Margin="0,0,0,0"
-                               Content="MB/s" />
+                    <StackPanel Orientation="Horizontal" Margin="10,0, 0, 0">
+                        <xaml:SpeedSpinBox x:Name="SpeedLimitSpinBox" Width="200" Height="40" Min="0" Max="10000" Step="1" Unit="MB/s" Value="50"/>
                     </StackPanel>
 
                     <CheckBox x:Name="KeepPatchesCheckBox"
@@ -253,7 +264,7 @@
                                     HorizontalAlignment="Left"
                                     x:Name="DiscordButton" Margin="0,10,0,0">
                                 <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="Discord" />
+                                    <materialDesign:PackIcon Kind="Chat" />
                                     <TextBlock Margin="8 0 0 0" VerticalAlignment="Center" Text="{Binding JoinDiscordLoc}"/>
                                 </StackPanel>
                             </Button>
@@ -290,18 +301,19 @@
                                         <TextBlock Margin="8 0 0 0" VerticalAlignment="Center" Text="{Binding StartOriginalLauncherLoc}"/>
                                     </StackPanel>
                                 </Button>
-                                
-                                <Button Style="{DynamicResource MaterialDesignFlatButton}"
-                                        HorizontalAlignment="Left"
-                                        Click="OpenAdvancedSettings_OnClick" Margin="10 0 0 0">
-                                    <Button.ToolTip>
-                                        <TextBlock Text="{Binding OpenAdvancedSettingsTipLoc}" />
-                                    </Button.ToolTip>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Margin="0 0 0 0" VerticalAlignment="Center"
-                                                   Foreground="DarkGray" FontSize="11" Text="{Binding OpenAdvancedSettingsLoc}"/>
-                                    </StackPanel>
-                                </Button>
+                                <Border BorderBrush="{DynamicResource MaterialDesign.Brush.Primary}" BorderThickness="2" CornerRadius="4" Margin="10 5 0 10" HorizontalAlignment="Left">
+                                    <Button Style="{DynamicResource MaterialDesignFlatButton}"
+                                            HorizontalAlignment="Center"
+                                            Click="OpenAdvancedSettings_OnClick">
+                                        <Button.ToolTip>
+                                            <TextBlock Text="{Binding OpenAdvancedSettingsTipLoc}" />
+                                        </Button.ToolTip>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Margin="0 0 0 0" VerticalAlignment="Center"
+                                                       Foreground="DarkGray" FontSize="11" Text="{Binding OpenAdvancedSettingsLoc}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
 

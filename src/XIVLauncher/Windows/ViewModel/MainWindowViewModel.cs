@@ -999,9 +999,10 @@ namespace XIVLauncher.Windows.ViewModel
                             {
                                 doVerify = CustomMessageBox.Builder
                                     .NewFrom(Loc.Localize("NoVersionReferenceError",
-                                        "The version of the game you are on cannot be repaired by XIVLauncher yet, as reference information is not yet available.\nPlease try again later."))
-                                    .WithImage(MessageBoxImage.Exclamation)
+                                        "The version of the game you are on cannot be repaired by XIVLauncher yet, as it is too recent.\n\nPlease try again later, or verify your game instead from the settings."))
+                                    .WithImage(MessageBoxImage.Error)
                                     .WithButtons(MessageBoxButton.OKCancel)
+                                    .WithShowHelpLinks()
                                     .WithOkButtonText(Loc.Localize("GameRepairSuccess_TryAgain", "_Try again"))
                                     .WithParentWindow(_window)
                                     .Show() == MessageBoxResult.OK;
@@ -1096,7 +1097,7 @@ namespace XIVLauncher.Windows.ViewModel
 
         public async Task<Process> StartGameAndAddon(Launcher.LoginResult loginResult, bool isSteam, bool forceNoDalamud, bool noThird, bool noPlugins)
         {
-            var dalamudLauncher = new DalamudLauncher(new WindowsDalamudRunner(), App.DalamudUpdater, App.Settings.InGameAddonLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
+            var dalamudLauncher = new DalamudLauncher(new WindowsDalamudRunner(App.DalamudUpdater.Runtime), App.DalamudUpdater, App.Settings.InGameAddonLoadMethod.GetValueOrDefault(DalamudLoadMethod.DllInject),
                 App.Settings.GamePath,
                 new DirectoryInfo(Paths.RoamingPath),
                 new DirectoryInfo(Paths.RoamingPath),
@@ -1164,7 +1165,7 @@ namespace XIVLauncher.Windows.ViewModel
                 }
             }
 
-            var gameRunner = new WindowsGameRunner(dalamudLauncher, dalamudOk, App.DalamudUpdater.Runtime);
+            var gameRunner = new WindowsGameRunner(dalamudLauncher, dalamudOk);
 
             // We won't do any sanity checks here anymore, since that should be handled in StartLogin
             var launched = this.Launcher.LaunchGame(gameRunner,
@@ -1368,9 +1369,9 @@ namespace XIVLauncher.Windows.ViewModel
                 }))
                 return false;
 
-            using var installer = new Common.Game.Patch.PatchInstaller(App.Settings.KeepPatches ?? false);
+            using var installer = new PatchInstaller(App.Settings.GamePath, App.Settings.KeepPatches ?? false);
             var patcher = new PatchManager(App.Settings.PatchAcquisitionMethod ?? AcquisitionMethod.Aria, App.Settings.SpeedLimitBytes,
-                repository, pendingPatches, App.Settings.GamePath, App.Settings.PatchPath, installer, this.Launcher, sid);
+                                           repository, pendingPatches, App.Settings.GamePath, App.Settings.PatchPath, installer, this.Launcher, sid);
             patcher.OnFail += this.PatcherOnFail;
             installer.OnFail += this.InstallerOnFail;
 
@@ -1388,8 +1389,7 @@ namespace XIVLauncher.Windows.ViewModel
 
             try
             {
-                await patcher.PatchAsync(new FileInfo(Path.Combine(Paths.RoamingPath, "aria2.log"))).ConfigureAwait(false);
-                return true;
+                return await patcher.PatchAsync(new FileInfo(Path.Combine(Paths.RoamingPath, "aria2.log"))).ConfigureAwait(false);
             }
             catch (PatchInstallerException ex)
             {
@@ -1401,8 +1401,8 @@ namespace XIVLauncher.Windows.ViewModel
             }
             catch (NotEnoughSpaceException sex)
             {
-                var bytesRequired = ApiHelpers.BytesToString(sex.BytesRequired);
-                var bytesFree = ApiHelpers.BytesToString(sex.BytesFree);
+                var bytesRequired = MathHelpers.BytesToString(sex.BytesRequired);
+                var bytesFree = MathHelpers.BytesToString(sex.BytesFree);
 
                 switch (sex.Kind)
                 {

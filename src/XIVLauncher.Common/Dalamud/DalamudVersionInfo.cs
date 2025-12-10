@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace XIVLauncher.Common.Dalamud
 {
-    internal class DalamudVersionInfo
+    public class DalamudVersionInfo
     {
         [JsonPropertyName("assemblyVersion")]
         public string AssemblyVersion { get; set; }
@@ -17,6 +17,12 @@ namespace XIVLauncher.Common.Dalamud
 
         [JsonPropertyName("runtimeRequired")]
         public bool RuntimeRequired { get; set; }
+
+        [JsonPropertyName("track")]
+        public string Track { get; set; }
+
+        [JsonPropertyName("displayName")]
+        public string DisplayName { get; set; }
 
         [JsonPropertyName("key")]
         public string Key { get; set; }

@@ -12,17 +12,14 @@ using CommandLine;
 using Config.Net;
 using System.Text.Json;
 using Serilog;
-using Serilog.Events;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Dalamud;
 using XIVLauncher.Common.Game;
-using XIVLauncher.Common.Support;
 using XIVLauncher.Common.Util;
 using XIVLauncher.Common.Windows;
 using XIVLauncher.PlatformAbstractions;
 using XIVLauncher.Settings;
 using XIVLauncher.Settings.Parsers;
-using XIVLauncher.Support;
 using XIVLauncher.Windows;
 using XIVLauncher.Xaml;
 
@@ -36,7 +33,13 @@ namespace XIVLauncher
         public class CmdLineOptions
         {
             [CommandLine.Option("dalamud-runner-override", Required = false, HelpText = "Path to a folder to override the dalamud runner with.")]
-            public string RunnerOverride { get; set; }
+            public string DalamudRunnerOverride { get; set; }
+
+            [CommandLine.Option("dalamud-beta-kind", Required = false, HelpText = "The Dalamud beta kind to use. Persists.")]
+            public string DalamudBetaKind { get; set; }
+
+            [CommandLine.Option("dalamud-beta-key", Required = false, HelpText = "The Dalamud beta key to use. Persists.")]
+            public string DalamudBetaKey { get; set; }
 
             [CommandLine.Option("roamingPath", Required = false, HelpText = "Path to a folder to override the roaming path for XL with.")]
             public string RoamingPath { get; set; }
@@ -116,14 +119,6 @@ namespace XIVLauncher
 #endif
         }
 
-        private static void OnSerilogLogLine(object sender, (string Line, LogEventLevel Level, DateTimeOffset TimeStamp, Exception Exception) e)
-        {
-            if (e.Exception == null)
-                return;
-
-            Troubleshooting.LogException(e.Exception, e.Line);
-        }
-
         private void SetupSettings()
         {
             Settings = new ConfigurationBuilder<ILauncherSettingsV3>()
@@ -158,6 +153,16 @@ namespace XIVLauncher
                 {
                     App.Settings.Language = CommandLine.ClientLanguage;
                 }
+
+                if (!string.IsNullOrEmpty(CommandLine.DalamudBetaKind))
+                {
+                    Settings.DalamudBetaKind = CommandLine.DalamudBetaKind;
+                }
+
+                if (!string.IsNullOrEmpty(CommandLine.DalamudBetaKey))
+                {
+                    Settings.DalamudBetaKey = CommandLine.DalamudBetaKey;
+                }
             }
             catch (Exception ex)
             {
@@ -169,7 +174,7 @@ namespace XIVLauncher
         {
             Dispatcher.Invoke(() =>
             {
-                _useFullExceptionHandler = true;
+                this.useFullExceptionHandler = true;
 
 #if !XL_NOAUTOUPDATE
                 if (_updateWindow != null)
@@ -187,9 +192,10 @@ namespace XIVLauncher
                     DalamudUpdater = new DalamudUpdater(new DirectoryInfo(Path.Combine(Paths.RoamingPath, "addon")),
                         new DirectoryInfo(Path.Combine(Paths.RoamingPath, "runtime")),
                         new DirectoryInfo(Path.Combine(Paths.RoamingPath, "dalamudAssets")),
-                        new DirectoryInfo(Paths.RoamingPath),
                         UniqueIdCache,
                         Settings.DalamudRolloutBucket);
+
+                    _mainWindow.SettingsControl.SetUpdater(DalamudUpdater);
 
                     if (this._dalamudRunnerOverride != null)
                     {
@@ -206,7 +212,10 @@ namespace XIVLauncher
                     while (DalamudUpdater.Overlay == null)
                         Thread.Yield();
 
-                    DalamudUpdater.Run(Updates.HaveFeatureFlag(Updates.LeaseFeatureFlags.ForceProxyDalamudAndAssets));
+                    DalamudUpdater.Run(
+                        Settings.DalamudBetaKind,
+                        Settings.DalamudBetaKey,
+                        Updates.HaveFeatureFlag(Updates.LeaseFeatureFlags.ForceProxyDalamudAndAssets));
                 }
                 catch (Exception ex)
                 {
@@ -228,7 +237,7 @@ namespace XIVLauncher
 
         private static void GenerateIntegrity(string path)
         {
-            var result = IntegrityCheck.RunIntegrityCheckAsync(new DirectoryInfo(path), null).GetAwaiter().GetResult();
+            var result = IntegrityCheck.GenerateIntegrityReport(new DirectoryInfo(path), null);
             string saveIntegrityPath = Path.Combine(Paths.RoamingPath, $"{result.GameVersion}.json");
 
             File.WriteAllText(saveIntegrityPath, JsonConvert.SerializeObject(result));
@@ -251,7 +260,7 @@ namespace XIVLauncher
             Environment.Exit(0);
         }
 
-        private bool _useFullExceptionHandler = false;
+        private bool useFullExceptionHandler = false;
 
         private void TaskSchedulerOnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
         {
@@ -265,7 +274,7 @@ namespace XIVLauncher
             {
                 Log.Error((Exception)e.ExceptionObject, "Unhandled exception");
 
-                if (_useFullExceptionHandler)
+                if (this.useFullExceptionHandler)
                 {
                     CustomMessageBox.Builder
                                     .NewFrom((Exception)e.ExceptionObject, "Unhandled", CustomMessageBox.ExitOnCloseModes.ExitOnClose)
@@ -300,22 +309,6 @@ namespace XIVLauncher
 
             try
             {
-                LogInit.Setup(
-                    Path.Combine(Paths.RoamingPath, "output.log"),
-                    Environment.GetCommandLineArgs());
-
-                Log.Information("========================================================");
-                Log.Information("Starting a session(v{Version} - {Hash})", AppUtil.GetAssemblyVersion(), AppUtil.GetGitHash());
-
-                SerilogEventSink.Instance.LogLine += OnSerilogLogLine;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Could not set up logging. Please report this error.\n\n" + ex.Message, "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-
-            try
-            {
                 var helpWriter = new StringWriter();
                 var parser = new Parser(config =>
                 {
@@ -336,9 +329,9 @@ namespace XIVLauncher
                     Paths.OverrideRoamingPath(CommandLine.RoamingPath);
                 }
 
-                if (!string.IsNullOrEmpty(CommandLine.RunnerOverride))
+                if (!string.IsNullOrEmpty(CommandLine.DalamudRunnerOverride))
                 {
-                    this._dalamudRunnerOverride = new FileInfo(CommandLine.RunnerOverride);
+                    this._dalamudRunnerOverride = new FileInfo(CommandLine.DalamudRunnerOverride);
                 }
 
                 if (CommandLine.NoAutoLogin)

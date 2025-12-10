@@ -12,12 +12,14 @@ namespace XIVLauncher.Windows.ViewModel
         private void SetupLoc()
         {
             PatchPreparingLoc = Loc.Localize("PatchPreparing", "Preparing...");
-            PatchGeneralStatusLoc = Loc.Localize("PatchGeneralStatus", "Patching through {0} updates...");
+            PatchGeneralStatusLoc = Loc.Localize("PatchGeneralStatus", "Installed {0} patches");
+            PatchWaitingLoc = Loc.Localize("PatchWaiting", "Waiting...");
             PatchCheckingLoc = Loc.Localize("PatchChecking", "Checking...");
             PatchDoneLoc = Loc.Localize("PatchDone", "Download done!");
             PatchInstallingLoc = Loc.Localize("PatchInstalling", "Installing...");
-            PatchInstallingFormattedLoc = Loc.Localize("PatchInstallingFormatted", "Installing #{0}...");
-            PatchInstallingIdleLoc = Loc.Localize("PatchInstallingIdle", "Waiting for download...");
+            PatchCancellingLoc = Loc.Localize("PatchCancelling", "Cancelling...");
+            PatchInstallingFormattedLoc = Loc.Localize("PatchInstallingFormatted", "Installing patch #{0}...");
+            PatchInstallingIdleLoc = Loc.Localize("PatchInstallingIdle", "Waiting for downloads...");
             PatchEtaLoc = Loc.Localize("PatchEta", "{0} left to download at {1}/s.");
             PatchEtaTimeLoc = new[]
             {
@@ -30,9 +32,11 @@ namespace XIVLauncher.Windows.ViewModel
 
         public string PatchPreparingLoc { get; private set; }
         public string PatchGeneralStatusLoc { get; private set; }
+        public string PatchWaitingLoc { get; private set; }
         public string PatchCheckingLoc { get; private set; }
         public string PatchDoneLoc { get; private set; }
         public string PatchInstallingLoc { get; private set; }
+        public string PatchCancellingLoc { get; private set; }
         public string PatchInstallingFormattedLoc { get; private set; }
         public string PatchInstallingIdleLoc { get; private set; }
         public string PatchEtaLoc { get; private set; }

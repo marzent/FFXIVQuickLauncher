@@ -89,7 +89,7 @@ public class IndexCreateIntegrityCommand
 
         var tasks = new HashSet<Task<Tuple<string, string>>>();
 
-        var result = new IntegrityCheck.IntegrityCheckResult { Hashes = new() };
+        var result = new IntegrityCheck.IntegrityCheckData { Hashes = new() };
 
         try
         {
@@ -188,8 +188,8 @@ public class IndexCreateIntegrityCommand
         public int Compare(string l, string r)
         {
             int comp;
-            var llist = l.Split('\\').Reverse().ToList();
-            var rlist = r.Split('\\').Reverse().ToList();
+            var llist = l.Split('\\').AsEnumerable().Reverse().ToList();
+            var rlist = r.Split('\\').AsEnumerable().Reverse().ToList();
 
             while (llist.Count > 1 && rlist.Count > 1)
             {

@@ -162,6 +162,9 @@ namespace XIVLauncher.Windows
 
                 _bannerChangeTimer.Elapsed += (o, args) =>
                 {
+                    if (!this.IsVisible)
+                        return;
+
                     _bannerDotList.ToList().ForEach(x => x.Active = false);
 
                     if (_currentBannerIndex + 1 > _banners.Count - 1)
@@ -275,7 +278,8 @@ namespace XIVLauncher.Windows
             };
             fakeStartMenuItem.Click += FakeStart_OnClick;
 
-            LoginContextMenu.Items.Add(fakeStartMenuItem);
+            var popupContent = LaunchOptionsPopupBox.PopupContent as Menu;
+            popupContent!.Items.Add(fakeStartMenuItem);
 #endif
 
             this.SetDefaults();
@@ -350,7 +354,7 @@ namespace XIVLauncher.Windows
             if (e.ChangedButton != MouseButton.Left)
                 return;
 
-            if (_headlines != null) Process.Start(_banners[_currentBannerIndex].Link.ToString());
+            if (_headlines != null) PlatformHelpers.OpenBrowser(_banners[_currentBannerIndex].Link.ToString());
         }
 
         private void NewsListView_OnMouseUp(object sender, MouseButtonEventArgs e)
@@ -366,7 +370,7 @@ namespace XIVLauncher.Windows
 
             if (!string.IsNullOrEmpty(item.Url))
             {
-                Process.Start(item.Url);
+                PlatformHelpers.OpenBrowser(item.Url);
             }
             else
             {
@@ -399,13 +403,21 @@ namespace XIVLauncher.Windows
                         break;
                 }
 
-                Process.Start(url + item.Id);
+                PlatformHelpers.OpenBrowser(url + item.Id);
             }
+        }
+
+        private void LoginButton_OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Right)
+                return;
+
+            LaunchOptionsPopupBox.IsPopupOpen = true;
         }
 
         private void WorldStatusButton_Click(object sender, RoutedEventArgs e)
         {
-            Process.Start("https://is.xivup.com/");
+            PlatformHelpers.OpenBrowser("https://is.xivup.com/");
         }
 
         private void QueueButton_OnClick(object sender, RoutedEventArgs e)
@@ -582,11 +594,17 @@ namespace XIVLauncher.Windows
             _currentBannerIndex = _bannerDotList.FirstOrDefault(x => x.Active)?.Index ?? _currentBannerIndex;
             Dispatcher.BeginInvoke(new Action(() => BannerImage.Source = _bannerBitmaps[_currentBannerIndex]));
 
+            if (!_bannerChangeTimer.Enabled)
+                return;
+
             _bannerChangeTimer.Stop();
         }
 
         private void RadioButton_MouseLeave(object sender, MouseEventArgs e)
         {
+            if (_bannerChangeTimer.Enabled)
+                return;
+
             _bannerChangeTimer.Start();
         }
 

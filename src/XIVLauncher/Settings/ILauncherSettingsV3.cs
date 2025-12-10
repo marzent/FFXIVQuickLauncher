@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using XIVLauncher.Common;
 using XIVLauncher.Common.Addon;
@@ -20,6 +20,7 @@ namespace XIVLauncher.Settings
         bool InGameAddonEnabled { get; set; }
         DalamudLoadMethod? InGameAddonLoadMethod { get; set; }
         bool OtpServerEnabled { get; set; }
+        bool OtpAlwaysOnTopEnabled { get; set; }
         ClientLanguage? Language { get; set; }
         LauncherLanguage? LauncherLanguage { get; set; }
         string CurrentAccountId { get; set; }
@@ -44,6 +45,9 @@ namespace XIVLauncher.Settings
         string DalamudRolloutBucket { get; set; }
         bool? AutoStartSteam { get; set; }
         bool? ForceNorthAmerica { get; set; }
+
+        string? DalamudBetaKind { get; set; }
+        string? DalamudBetaKey { get; set; }
 
         PreserveWindowPosition.WindowPlacement? MainWindowPlacement { get; set; }
 

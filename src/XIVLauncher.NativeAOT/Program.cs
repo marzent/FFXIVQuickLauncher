@@ -49,7 +49,7 @@ public class Program
     private const uint STEAM_APP_ID_FT = 312060;
 
     [UnmanagedCallersOnly(EntryPoint = "initXL")]
-    public static void Init(nint appName, nint storagePath, bool verboseLogging, nint frontierUrl)
+    public static void Init(nint appName, nint storagePath, bool verboseLogging, nint frontierUrl, nint betaKind, nint betaKey)
     {
         AppName = Marshal.PtrToStringUTF8(appName)!;
         Storage = new Storage(AppName, Marshal.PtrToStringUTF8(storagePath)!);
@@ -93,11 +93,11 @@ public class Program
         }
 
         var dalamudLoadInfo = new DalamudOverlayInfoProxy();
-        DalamudUpdater = new DalamudUpdater(Storage.GetFolder("dalamud"), Storage.GetFolder("runtime"), Storage.GetFolder("dalamudAssets"), Storage.Root, null, "Control")
+        DalamudUpdater = new DalamudUpdater(Storage.GetFolder("dalamud"), Storage.GetFolder("runtime"), Storage.GetFolder("dalamudAssets"), null, "Control")
         {
             Overlay = dalamudLoadInfo
         };
-        DalamudUpdater.Run();
+        DalamudUpdater.Run(Marshal.PtrToStringUTF8(betaKind), Marshal.PtrToStringUTF8(betaKey));
 
         UniqueIdCache = new CommonUniqueIdCache(Storage.GetFile("uidCache.json"));
         Launcher = new SqexLauncher(UniqueIdCache, CommonSettings, FrontierUrl);
@@ -175,7 +175,7 @@ public class Program
         LaunchServices.EnsureLauncherAffinity((XIVLauncher.NativeAOT.Configuration.License)Config!.License!);
         IGameRunner gameRunner;
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            gameRunner = new WindowsGameRunner(null, false, Program.DalamudUpdater!.Runtime);
+            gameRunner = new WindowsGameRunner(null, false);
         else
             gameRunner = new UnixGameRunner(Program.CompatibilityTools, null, false);
 

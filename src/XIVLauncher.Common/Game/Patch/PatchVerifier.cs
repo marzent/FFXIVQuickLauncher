@@ -17,6 +17,7 @@ using XIVLauncher.Common.Game.Exceptions;
 using XIVLauncher.Common.Patching.IndexedZiPatch;
 using XIVLauncher.Common.Patching.Util;
 using XIVLauncher.Common.PlatformAbstractions;
+using XIVLauncher.Common.Util;
 
 namespace XIVLauncher.Common.Game.Patch
 {
@@ -49,7 +50,11 @@ namespace XIVLauncher.Common.Game.Patch
         private HttpClient _client;
         private CancellationTokenSource _cancellationTokenSource = new();
 
-        private Dictionary<Repository, string> _repoMetaPaths = new();
+        LoginResult _currentLoginResult;
+
+        record struct RepoMetaInfo(string Path, string Version);
+
+        private Dictionary<Repository, RepoMetaInfo> _repoMetaPaths = new();
         private Dictionary<string, PatchSource> _patchSources = new();
 
         private Task _verificationTask;
@@ -142,8 +147,9 @@ namespace XIVLauncher.Common.Game.Patch
             ProgressUpdateInterval = progressUpdateInterval;
             _maxExpansionToCheck = maxExpansion;
             _external = external;
+            _currentLoginResult = loginResult;
 
-            SetLoginState(loginResult);
+            this.CreatePatchSources(loginResult);
         }
 
         public void Start()
@@ -179,7 +185,7 @@ namespace XIVLauncher.Common.Game.Patch
             return _verificationTask ?? Task.CompletedTask;
         }
 
-        private void SetLoginState(LoginResult result)
+        private void CreatePatchSources(LoginResult result)
         {
             _patchSources.Clear();
 
@@ -195,25 +201,6 @@ namespace XIVLauncher.Common.Game.Patch
                     Uri = new Uri(patch.Url),
                 });
             }
-        }
-
-        private bool AdminAccessRequired(string gameRootPath)
-        {
-            string tempFn;
-            do
-            {
-                tempFn = Path.Combine(gameRootPath, Guid.NewGuid().ToString());
-            } while (File.Exists(tempFn));
-            try
-            {
-                File.WriteAllText(tempFn, "");
-                File.Delete(tempFn);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return true;
-            }
-            return false;
         }
 
         private void RecordProgressForEstimation()
@@ -309,14 +296,22 @@ namespace XIVLauncher.Common.Game.Patch
             State = VerifyState.NotStarted;
             LastException = null;
             IIndexedZiPatchIndexInstaller indexedZiPatchIndexInstaller = null;
+
+            var needElevation = PlatformHelpers.IsElevationRequiredForWrite(_settings.GamePath);
+
             try
             {
                 var assemblyLocation = AppContext.BaseDirectory;
+
                 if (_external)
-                    indexedZiPatchIndexInstaller = new IndexedZiPatchIndexRemoteInstaller(Path.Combine(assemblyLocation!, "XIVLauncher.PatchInstaller.exe"),
-                        AdminAccessRequired(_settings.GamePath.FullName));
+                {
+                    indexedZiPatchIndexInstaller = new IndexedZiPatchIndexRemoteInstaller(Path.Combine(assemblyLocation!, "patcher", "XIVLauncher.PatchInstaller.exe"),
+                                                                                          needElevation);
+                }
                 else
+                {
                     indexedZiPatchIndexInstaller = new IndexedZiPatchIndexLocalInstaller();
+                }
 
                 await indexedZiPatchIndexInstaller.SetWorkerProcessPriority(ProcessPriorityClass.Idle).ConfigureAwait(false);
 
@@ -324,7 +319,6 @@ namespace XIVLauncher.Common.Game.Patch
                 {
                     switch (State)
                     {
-
                         case VerifyState.NotStarted:
                             State = VerifyState.DownloadMeta;
                             break;
@@ -332,6 +326,20 @@ namespace XIVLauncher.Common.Game.Patch
                         case VerifyState.DownloadMeta:
                             await this.GetPatchMeta().ConfigureAwait(false);
                             State = VerifyState.VerifyAndRepair;
+
+                            // Double-check that the indices we have are actually appropriate for the version of the game we want.
+                            foreach (var patch in _currentLoginResult.PendingPatches.GroupBy(x => x.GetRepo()))
+                            {
+                                if (!patch.Any())
+                                    continue;
+
+                                if (!_repoMetaPaths.TryGetValue(patch.Key, out var repoMeta))
+                                    throw new NoVersionReferenceException(patch.Key, "(repo does not exist)");
+
+                                if (!repoMeta.Version.EndsWith(patch.Last().VersionId, StringComparison.Ordinal))
+                                    throw new NoVersionReferenceException(patch.Key, patch.Last().VersionId);
+                            }
+
                             break;
 
                         case VerifyState.VerifyAndRepair:
@@ -351,9 +359,9 @@ namespace XIVLauncher.Common.Game.Patch
                             var bootPath = Path.Combine(_settings.GamePath.FullName, "boot");
                             var gamePath = Path.Combine(_settings.GamePath.FullName, "game");
 
-                            foreach (var metaPath in _repoMetaPaths)
+                            foreach (var meta in _repoMetaPaths)
                             {
-                                var patchIndex = new IndexedZiPatchIndex(new BinaryReader(new DeflateStream(new FileStream(metaPath.Value, FileMode.Open, FileAccess.Read), CompressionMode.Decompress)));
+                                var patchIndex = new IndexedZiPatchIndex(new BinaryReader(new DeflateStream(new FileStream(meta.Value.Path, FileMode.Open, FileAccess.Read), CompressionMode.Decompress)));
                                 var adjustedGamePath = patchIndex.ExpacVersion == IndexedZiPatchIndex.ExpacVersionBoot ? bootPath : gamePath;
 
                                 foreach (var target in patchIndex.Targets)
@@ -481,7 +489,7 @@ namespace XIVLauncher.Common.Game.Patch
                     State = VerifyState.Cancelled;
                 else if (_cancellationTokenSource.IsCancellationRequested)
                     State = VerifyState.Cancelled;
-                else if (ex is Win32Exception winex && (uint)winex.HResult == 0x80004005u) // The operation was canceled by the user (UAC dialog cancellation)
+                else if (ex is Win32Exception winex && (uint)winex.HResult == 0x80004005u)  // The operation was canceled by the user (UAC dialog cancellation)
                     State = VerifyState.Cancelled;
                 else
                 {
@@ -624,7 +632,7 @@ namespace XIVLauncher.Common.Game.Patch
                 }
             }
 
-            _repoMetaPaths.Add(repo, filePath);
+            _repoMetaPaths.Add(repo, new RepoMetaInfo(filePath, latestVersion));
             Log.Verbose("Downloaded patch index for {Repo}({Version})", repo, latestVersion);
         }
 

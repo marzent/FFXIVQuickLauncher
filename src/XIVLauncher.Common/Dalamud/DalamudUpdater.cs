@@ -20,20 +20,20 @@ namespace XIVLauncher.Common.Dalamud
     public class DalamudUpdater
     {
         private readonly DirectoryInfo addonDirectory;
-        private readonly DirectoryInfo assetDirectory;
-        private readonly DirectoryInfo configDirectory;
+        private readonly DirectoryInfo assetRootDirectory;
         private readonly IUniqueIdCache? cache;
 
         private readonly TimeSpan defaultTimeout = TimeSpan.FromMinutes(15);
 
         private bool forceProxy = false;
+        private DalamudVersionInfo? resolvedBranch;
 
         public DownloadState State { get; private set; } = DownloadState.Unknown;
         public bool IsStaging { get; private set; } = false;
 
         public Exception? EnsurementException { get; private set; }
 
-        private FileInfo runnerInternal;
+        private FileInfo? runnerInternal;
 
         public FileInfo Runner
         {
@@ -42,7 +42,7 @@ namespace XIVLauncher.Common.Dalamud
                 if (RunnerOverride != null)
                     return RunnerOverride;
 
-                return runnerInternal;
+                return runnerInternal ?? throw new InvalidOperationException("Runner not prepared yet");
             }
             private set => runnerInternal = value;
         }
@@ -51,25 +51,50 @@ namespace XIVLauncher.Common.Dalamud
 
         public FileInfo? RunnerOverride { get; set; }
 
-        public DirectoryInfo AssetDirectory { get; private set; }
+        public DirectoryInfo? AssetDirectory { get; private set; }
 
         public IDalamudLoadingOverlay? Overlay { get; set; }
 
         public string? RolloutBucket { get; }
 
+        public event Action<DalamudVersionInfo?>? ResolvedBranchChanged;
+
+        public DalamudVersionInfo? ResolvedBranch
+        {
+            get => resolvedBranch;
+            private set
+            {
+                if (resolvedBranch == value)
+                    return;
+
+                resolvedBranch = value;
+
+                try
+                {
+                    ResolvedBranchChanged?.Invoke(resolvedBranch);
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
+        }
+
         public enum DownloadState
         {
             Unknown,
+            Running,
             Done,
             NoIntegrity, // fail with error message
         }
 
-        public DalamudUpdater(DirectoryInfo addonDirectory, DirectoryInfo runtimeDirectory, DirectoryInfo assetDirectory, DirectoryInfo configDirectory, IUniqueIdCache? cache, string? dalamudRolloutBucket)
+        public DalamudUpdater(DirectoryInfo addonDirectory, DirectoryInfo runtimeDirectory, DirectoryInfo assetRootDirectory, IUniqueIdCache? cache, string? dalamudRolloutBucket)
         {
             this.addonDirectory = addonDirectory;
+            this.assetRootDirectory = assetRootDirectory;
+
             this.Runtime = runtimeDirectory;
-            this.assetDirectory = assetDirectory;
-            this.configDirectory = configDirectory;
+            this.AssetDirectory = null;
             this.cache = cache;
 
             this.RolloutBucket = dalamudRolloutBucket;
@@ -101,12 +126,14 @@ namespace XIVLauncher.Common.Dalamud
             Overlay!.ReportProgress(size, downloaded, progress);
         }
 
-        public void Run(bool overrideForceProxy = false)
+        public void Run(string? betaKind, string? betaKey, bool overrideForceProxy = false)
         {
             Log.Information("[DUPDATE] Starting... (forceProxy: {ForceProxy})", overrideForceProxy);
-            this.State = DownloadState.Unknown;
+            this.State = DownloadState.Running;
 
             this.forceProxy = overrideForceProxy;
+
+            this.ResolvedBranch = null;
 
             Task.Run(async () =>
             {
@@ -118,7 +145,7 @@ namespace XIVLauncher.Common.Dalamud
                 {
                     try
                     {
-                        await UpdateDalamud().ConfigureAwait(true);
+                        await UpdateDalamud(betaKind, betaKey).ConfigureAwait(true);
                         isUpdated = true;
                         break;
                     }
@@ -134,10 +161,24 @@ namespace XIVLauncher.Common.Dalamud
             });
         }
 
-        private static string GetBetaTrackName(DalamudSettings settings) =>
-            string.IsNullOrEmpty(settings.DalamudBetaKind) ? "staging" : settings.DalamudBetaKind;
+        public bool? ReCheckVersion(DirectoryInfo gamePath)
+        {
+            if (this.State != DownloadState.Done)
+                return null;
 
-        private async Task<(DalamudVersionInfo release, DalamudVersionInfo? staging)> GetVersionInfo(DalamudSettings settings)
+            if (this.RunnerOverride != null)
+                return true;
+
+            var info = DalamudVersionInfo.Load(new FileInfo(Path.Combine(this.Runner.DirectoryName!,
+                "version.json")));
+
+            return Repository.Ffxiv.GetVer(gamePath) == info.SupportedGameVer;
+        }
+
+        private static string GetBetaTrackName(string betaKind) =>
+            string.IsNullOrEmpty(betaKind) ? "staging" : betaKind;
+
+        private async Task<(DalamudVersionInfo release, DalamudVersionInfo? staging)> GetVersionInfo(string? betaKind, string? betaKey)
         {
             using var client = new HttpClient
             {
@@ -146,7 +187,7 @@ namespace XIVLauncher.Common.Dalamud
 
             client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
             {
-                NoCache = true
+                NoCache = true,
             };
 
             var versionInfoJsonRelease = await client.GetStringAsync(DalamudLauncher.REMOTE_BASE + $"release&bucket={this.RolloutBucket}").ConfigureAwait(false);
@@ -155,9 +196,9 @@ namespace XIVLauncher.Common.Dalamud
 
             DalamudVersionInfo? versionInfoStaging = null;
 
-            if (!string.IsNullOrEmpty(settings.DalamudBetaKey))
+            if (!string.IsNullOrEmpty(betaKey))
             {
-                var versionInfoJsonStaging = await client.GetAsync(DalamudLauncher.REMOTE_BASE + GetBetaTrackName(settings)).ConfigureAwait(false);
+                var versionInfoJsonStaging = await client.GetAsync(DalamudLauncher.REMOTE_BASE + GetBetaTrackName(betaKind)).ConfigureAwait(false);
 
                 if (versionInfoJsonStaging.StatusCode != HttpStatusCode.BadRequest)
                     versionInfoStaging = JsonSerializer.Deserialize(await versionInfoJsonStaging.Content.ReadAsStringAsync().ConfigureAwait(false), DalamudJsonContext.Default.DalamudVersionInfo);
@@ -166,27 +207,28 @@ namespace XIVLauncher.Common.Dalamud
             return (versionInfoRelease, versionInfoStaging);
         }
 
-        private async Task UpdateDalamud()
+        private async Task UpdateDalamud(string? betaKind, string? betaKey)
         {
-            var settings = DalamudSettings.GetSettings(this.configDirectory);
-
             // GitHub requires TLS 1.2, we need to hardcode this for Windows 7
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-            var (versionInfoRelease, versionInfoStaging) = await GetVersionInfo(settings).ConfigureAwait(false);
+            var (versionInfoRelease, versionInfoStaging) = await GetVersionInfo(betaKind, betaKey).ConfigureAwait(false);
 
             var remoteVersionInfo = versionInfoRelease;
 
-            if (versionInfoStaging?.Key != null && versionInfoStaging.Key == settings.DalamudBetaKey)
+            if (versionInfoStaging?.Key != null && versionInfoStaging.Key == betaKey)
             {
                 remoteVersionInfo = versionInfoStaging;
                 IsStaging = true;
-                Log.Information("[DUPDATE] Using staging version {Kind} with key {Key} ({Hash})", settings.DalamudBetaKind, settings.DalamudBetaKey, remoteVersionInfo.AssemblyVersion);
+                Log.Information("[DUPDATE] Using staging version {Kind} with key {Key} ({Hash})", betaKind, betaKey, remoteVersionInfo.AssemblyVersion);
             }
             else
             {
                 Log.Information("[DUPDATE] Using release version ({Hash})", remoteVersionInfo.AssemblyVersion);
             }
+
+            // Update resolved branch to reflect what the server actually selected
+            this.ResolvedBranch = remoteVersionInfo;
 
             var versionInfoJson = JsonSerializer.Serialize(remoteVersionInfo, DalamudJsonContext.Default.DalamudVersionInfo);
 
@@ -219,7 +261,7 @@ namespace XIVLauncher.Common.Dalamud
                 }
             }
 
-            if (remoteVersionInfo.RuntimeRequired || settings.DoDalamudRuntime)
+            if (remoteVersionInfo.RuntimeRequired)
             {
                 Log.Information("[DUPDATE] Now starting for .NET Runtime {0}", remoteVersionInfo.RuntimeVersion);
 
@@ -273,7 +315,7 @@ namespace XIVLauncher.Common.Dalamud
             {
                 this.SetOverlayProgress(IDalamudLoadingOverlay.DalamudUpdateStep.Assets);
                 this.ReportOverlayProgress(null, 0, null);
-                var assetResult = await AssetManager.EnsureAssets(this, this.assetDirectory).ConfigureAwait(true);
+                var assetResult = await AssetManager.EnsureAssets(this, this.assetRootDirectory).ConfigureAwait(true);
                 AssetDirectory = assetResult.AssetDir;
                 assetVer = assetResult.Version;
             }
@@ -311,7 +353,7 @@ namespace XIVLauncher.Common.Dalamud
             return true;
         }
 
-        public static bool IsIntegrity(DirectoryInfo addonPath)
+        private static bool IsIntegrity(DirectoryInfo addonPath)
         {
             var files = addonPath.GetFiles();
 

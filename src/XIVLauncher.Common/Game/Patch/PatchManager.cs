@@ -38,7 +38,6 @@ namespace XIVLauncher.Common.Game.Patch
         private readonly CancellationTokenSource _cancelTokenSource = new();
 
         private readonly AcquisitionMethod acquisitionMethod;
-        private readonly long speedLimitBytes;
         private readonly Repository repo;
         private readonly DirectoryInfo gamePath;
         private readonly DirectoryInfo patchStore;
@@ -49,6 +48,8 @@ namespace XIVLauncher.Common.Game.Patch
         private readonly Mutex downloadFinalizationLock = new Mutex();
 
         public readonly IReadOnlyList<PatchDownload> Downloads;
+
+        private long speedLimitBytes;
 
         public int CurrentInstallIndex { get; private set; }
 
@@ -61,25 +62,21 @@ namespace XIVLauncher.Common.Game.Patch
 
         public readonly long[] Progresses = new long[MAX_DOWNLOADS_AT_ONCE];
         public readonly double[] Speeds = new double[MAX_DOWNLOADS_AT_ONCE];
-        public readonly PatchDownload[] Actives = new PatchDownload[MAX_DOWNLOADS_AT_ONCE];
+        public readonly PatchDownload?[] Actives = new PatchDownload[MAX_DOWNLOADS_AT_ONCE];
         public readonly SlotState[] Slots = new SlotState[MAX_DOWNLOADS_AT_ONCE];
-        public readonly PatchAcquisition[] DownloadServices = new PatchAcquisition[MAX_DOWNLOADS_AT_ONCE];
+        public readonly PatchAcquisition?[] Acquisitions = new PatchAcquisition[MAX_DOWNLOADS_AT_ONCE];
 
         public bool IsInstallerBusy { get; private set; }
 
         public bool DownloadsDone { get; private set; }
+
+        public bool IsCancelling { get; private set; }
 
         public long AllDownloadsLength => GetDownloadLength();
 
         private bool hasError = false;
 
         public event Action<PatchListEntry, string> OnFail;
-
-        public enum FailReason
-        {
-            DownloadProblem,
-            HashCheck,
-        }
 
         public PatchManager(AcquisitionMethod acquisitionMethod, long speedLimitBytes, Repository repo, IEnumerable<PatchListEntry> patches, DirectoryInfo gamePath, DirectoryInfo patchStore, PatchInstaller installer, ILauncher launcher, string sid)
         {
@@ -106,7 +103,7 @@ namespace XIVLauncher.Common.Game.Patch
             }
         }
 
-        public async Task PatchAsync(FileInfo aria2LogFile, bool external = true)
+        public async Task<bool> PatchAsync(FileInfo aria2LogFile, bool external = true)
         {
             if (!EnvironmentSettings.IsIgnoreSpaceRequirements)
             {
@@ -151,9 +148,32 @@ namespace XIVLauncher.Common.Game.Patch
                 // Only PatchManager uses Aria (or Torrent), so it's safe to shut it down here.
                 await UnInitializeAcquisition().ConfigureAwait(false);
             }
+
+            return !this.IsCancelling;
         }
 
-        public async Task InitializeAcquisition(FileInfo aria2LogFile)
+        public void StartCancellation()
+        {
+            this.CancelAllDownloads();
+            this.IsCancelling = true;
+        }
+
+        public async Task SetSpeedLimitAsync(long bytesPerSecond)
+        {
+            this.speedLimitBytes = bytesPerSecond;
+
+            switch (this.acquisitionMethod)
+            {
+                case AcquisitionMethod.NetDownloader:
+                    // ignored
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        private async Task InitializeAcquisition(FileInfo aria2LogFile)
         {
             // TODO: Come up with a better pattern for initialization. This sucks.
             switch (this.acquisitionMethod)
@@ -167,7 +187,7 @@ namespace XIVLauncher.Common.Game.Patch
             }
         }
 
-        public static async Task UnInitializeAcquisition()
+        private static async Task UnInitializeAcquisition()
         {
             try
             {
@@ -204,10 +224,6 @@ namespace XIVLauncher.Common.Game.Patch
 
             switch (this.acquisitionMethod)
             {
-                case AcquisitionMethod.NetDownloader:
-                    acquisition = new NetDownloaderPatchAcquisition(this.patchStore, this.speedLimitBytes / MAX_DOWNLOADS_AT_ONCE);
-                    break;
-
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -286,14 +302,14 @@ namespace XIVLauncher.Common.Game.Patch
                 this.downloadFinalizationLock.ReleaseMutex();
             };
 
-            DownloadServices[index] = acquisition;
+            this.Acquisitions[index] = acquisition;
 
             await acquisition.StartDownloadAsync(realUrl, outFile);
         }
 
-        public void CancelAllDownloads()
+        private void CancelAllDownloads()
         {
-            foreach (var downloadService in DownloadServices)
+            foreach (var downloadService in this.Acquisitions)
             {
                 if (downloadService == null)
                     continue;
@@ -317,7 +333,14 @@ namespace XIVLauncher.Common.Game.Patch
         {
             while (Downloads.Any(x => x.State == PatchState.Nothing))
             {
-                Thread.Sleep(500);
+                Thread.Sleep(200);
+
+                if (this.IsCancelling)
+                {
+                    Log.Information("Patching cancelled, exiting download loop.");
+                    return;
+                }
+
                 for (var i = 0; i < MAX_DOWNLOADS_AT_ONCE; i++)
                 {
                     if (Slots[i] != SlotState.Done)
@@ -376,7 +399,19 @@ namespace XIVLauncher.Common.Game.Patch
         {
             while (CurrentInstallIndex < Downloads.Count)
             {
-                Thread.Sleep(500);
+                Thread.Sleep(200);
+
+                if (this.IsCancelling)
+                {
+                    if (this.installer.State == PatchInstaller.InstallerState.Busy)
+                    {
+                        // Wait for the installer to finish what it's doing
+                        continue;
+                    }
+
+                    Log.Information("Patching cancelled, exiting apply loop.");
+                    return;
+                }
 
                 var toInstall = Downloads[CurrentInstallIndex];
 
@@ -393,7 +428,7 @@ namespace XIVLauncher.Common.Game.Patch
 
                 while (this.installer.State != PatchInstaller.InstallerState.Ready)
                 {
-                    Thread.Yield();
+                    Thread.Sleep(100);
                 }
 
                 // TODO need to handle this better
@@ -408,8 +443,9 @@ namespace XIVLauncher.Common.Game.Patch
                 CurrentInstallIndex++;
             }
 
-            Log.Information("PATCHING finish");
-            this.installer.FinishInstall(this.gamePath);
+            Log.Information("Now finalize install");
+            this.installer.FinalizeAndWait(this.gamePath);
+            Log.Information("RunApplyQueue done");
         }
 
         private enum HashCheckResult

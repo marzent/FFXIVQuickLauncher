@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -31,8 +31,6 @@ namespace XIVLauncher.Windows
 
         private SettingsControlViewModel ViewModel => DataContext as SettingsControlViewModel;
 
-        private const int BYTES_TO_MB = 1048576;
-
         private bool _hasTriggeredLogo = false;
 
         public SettingsControl()
@@ -44,6 +42,17 @@ namespace XIVLauncher.Windows
             DataContext = new SettingsControlViewModel();
 
             ReloadSettings();
+        }
+
+        private void OnResolvedBranchChanged(DalamudVersionInfo? branch)
+        {
+            this.Dispatcher.Invoke(() => { this.DalamudBranchTextBlock.Text = branch == null ? "Transmitting..." : $"{branch.DisplayName} ({branch.Track})"; });
+        }
+
+        public void SetUpdater(DalamudUpdater updater)
+        {
+            updater.ResolvedBranchChanged += OnResolvedBranchChanged;
+            OnResolvedBranchChanged(updater.ResolvedBranch);
         }
 
         public void ReloadSettings()
@@ -63,13 +72,6 @@ namespace XIVLauncher.Windows
             PatchAcquisitionComboBox.SelectedIndex = (int) App.Settings.PatchAcquisitionMethod.GetValueOrDefault(AcquisitionMethod.Aria);
             AutoStartSteamCheckBox.IsChecked = App.Settings.AutoStartSteam;
 
-            InjectionDelayUpDown.Value = App.Settings.DalamudInjectionDelayMs;
-
-            if (App.Settings.InGameAddonLoadMethod == DalamudLoadMethod.DllInject)
-                DllInjectDalamudLoadMethodRadioButton.IsChecked = true;
-            else
-                EntryPointDalamudLoadMethodRadioButton.IsChecked = true;
-
             // Prevent raising events...
             this.EnableHooksCheckBox.Checked -= this.EnableHooksCheckBox_OnChecked;
             EnableHooksCheckBox.IsChecked = App.Settings.InGameAddonEnabled;
@@ -77,15 +79,17 @@ namespace XIVLauncher.Windows
 
             OtpServerCheckBox.IsChecked = App.Settings.OtpServerEnabled;
 
+            OtpAlwaysOnTopCheckBox.IsChecked = App.Settings.OtpAlwaysOnTopEnabled;
+
             LaunchArgsTextBox.Text = App.Settings.AdditionalLaunchArgs;
 
             DpiAwarenessComboBox.SelectedIndex = (int) App.Settings.DpiAwareness.GetValueOrDefault(DpiAwareness.Unaware);
 
             VersionLabel.Text += " - v" + AppUtil.GetAssemblyVersion() + " - " + AppUtil.GetGitHash() + " - " + Environment.Version;
 
-            var val = (decimal) App.Settings.SpeedLimitBytes / BYTES_TO_MB;
+            var val = (decimal) App.Settings.SpeedLimitBytes / MathHelpers.BYTES_TO_MB;
 
-            SpeedLimiterUpDown.Value = val;
+            this.SpeedLimitSpinBox.Value = (double)val;
 
             IsFreeTrialCheckbox.IsChecked = App.Settings.IsFt;
         }
@@ -116,15 +120,9 @@ namespace XIVLauncher.Windows
 
             App.Settings.InGameAddonEnabled = EnableHooksCheckBox.IsChecked == true;
 
-            if (InjectionDelayUpDown.Value.HasValue)
-                App.Settings.DalamudInjectionDelayMs = InjectionDelayUpDown.Value.Value;
-
-            if (DllInjectDalamudLoadMethodRadioButton.IsChecked == true)
-                App.Settings.InGameAddonLoadMethod = DalamudLoadMethod.DllInject;
-            else
-                App.Settings.InGameAddonLoadMethod = DalamudLoadMethod.EntryPoint;
-
             App.Settings.OtpServerEnabled = OtpServerCheckBox.IsChecked == true;
+
+            App.Settings.OtpAlwaysOnTopEnabled = OtpAlwaysOnTopCheckBox.IsChecked == true;
 
             App.Settings.AdditionalLaunchArgs = LaunchArgsTextBox.Text;
 
@@ -132,7 +130,7 @@ namespace XIVLauncher.Windows
 
             SettingsDismissed?.Invoke(this, null);
 
-            App.Settings.SpeedLimitBytes = (long) (SpeedLimiterUpDown.Value * BYTES_TO_MB);
+            App.Settings.SpeedLimitBytes = (long)(this.SpeedLimitSpinBox.Value * MathHelpers.BYTES_TO_MB);
 
             App.Settings.IsFt = this.IsFreeTrialCheckbox.IsChecked == true;
 
@@ -299,9 +297,20 @@ namespace XIVLauncher.Windows
 
         private void EnableHooksCheckBox_OnChecked(object sender, RoutedEventArgs e)
         {
+            if (string.IsNullOrEmpty(ViewModel.GamePath) || !GameHelpers.PathHasExistingInstall(ViewModel.GamePath))
+                return;
+
             try
             {
-                if (!string.IsNullOrEmpty(ViewModel.GamePath) && GameHelpers.IsValidGamePath(ViewModel.GamePath) && !DalamudLauncher.CanRunDalamud(new DirectoryInfo(ViewModel.GamePath)))
+                var applicable = App.DalamudUpdater.ReCheckVersion(new DirectoryInfo(ViewModel.GamePath));
+
+                if (!applicable.HasValue)
+                {
+                    CustomMessageBox.Show(
+                        Loc.Localize("DalamudEnsureFail", "Could not determine Dalamud compatibility for the selected game version.\nPlease ensure that the game path is correct and that the game is fully updated."),
+                        "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Asterisk, parentWindow: Window.GetWindow(this));
+                }
+                else if ((bool)!applicable)
                 {
                     CustomMessageBox.Show(
                         Loc.Localize("DalamudIncompatible", "Dalamud was not yet updated for your current game version.\nThis is common after patches, so please be patient or ask on the Discord for a status update!"),
@@ -324,7 +333,7 @@ namespace XIVLauncher.Windows
             try
             {
                 Directory.CreateDirectory(pluginsPath);
-                Process.Start(pluginsPath);
+                Process.Start("explorer.exe", pluginsPath);
             }
             catch (Exception ex)
             {
@@ -369,6 +378,24 @@ namespace XIVLauncher.Windows
             {
                 GamePathSafeguardText.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private void OpenDalamudBranchSwitcher_OnClick(object sender, RoutedEventArgs e)
+        {
+            // TODO: Queue this?
+            if (App.DalamudUpdater.State == DalamudUpdater.DownloadState.Running)
+            {
+                CustomMessageBox.Show(Loc.Localize("DalamudBranchSwitcherBusy", "Cannot switch Dalamud branches while an update is in progress.\nPlease wait a little while before trying again."),
+                    "XIVLauncher", MessageBoxButton.OK, MessageBoxImage.Warning, parentWindow: Window.GetWindow(this));
+                return;
+            }
+
+            var window = new DalamudBranchSwitcherWindow
+            {
+                Owner = Window.GetWindow(this)
+            };
+
+            window.ShowDialog();
         }
 
         private void LicenseText_OnMouseUp(object sender, MouseButtonEventArgs e)

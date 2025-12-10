@@ -71,7 +71,22 @@ namespace XIVLauncher.Common.Game
 
             var json = Encoding.UTF8.GetString(await game.DownloadAsLauncher(url, language, "application/json, text/plain, */*").ConfigureAwait(false));
 
-            return JsonSerializer.Deserialize<Headlines>(json);
+            var news = JsonSerializer.Deserialize<Headlines>(json);
+            foreach (var item in news.News)
+            {
+                if (string.IsNullOrEmpty(item.Url) && !string.IsNullOrEmpty(item.Id))
+                {
+                    item.Url = $"https://{language.GetLangCodeLodestone()}.finalfantasyxiv.com/lodestone/news/detail/{item.Id}";
+                }
+            }
+            foreach (var item in news.Topics)
+            {
+                if (string.IsNullOrEmpty(item.Url) && !string.IsNullOrEmpty(item.Id))
+                {
+                    item.Url = $"https://{language.GetLangCodeLodestone()}.finalfantasyxiv.com/lodestone/topics/detail/{item.Id}";
+                }
+            }
+            return news;
         }
 
         public static async Task<IReadOnlyList<Banner>> GetBanners(ILauncher game, ClientLanguage language, bool forceNa = false)

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using CheapLoc;
@@ -72,6 +72,8 @@ namespace XIVLauncher.Windows.ViewModel
             OtpServerTooltipLoc = Loc.Localize("OtpServerTooltip", "This will allow you to send your OTP code to XIVLauncher directly from your phone.\nClick \"Learn more\" to see how to set this up.");
             LearnMoreLoc = Loc.Localize("LearnMore", "Learn More");
             OtpLearnMoreTooltipLoc = Loc.Localize("OtpLearnMoreTooltipLoc", "Open a guide in your web browser.");
+            OtpAlwaysOnTopCheckBoxLoc = Loc.Localize("OtpAlwaysOnTopCheckBox", "Keep the OTP Window Always on Top");
+            OtpAlwaysOnTopTooltipLoc = Loc.Localize("OtpAlwaysOnTopTooltip", "This will keep the One Time Password Popup ontop of any window, even if it looses focus.");
             AdditionalArgumentsLoc = Loc.Localize("AdditionalArguments", "Additional launch arguments");
             ChooseDpiAwarenessLoc = Loc.Localize("ChooseDpiAwareness", "Game DPI Awareness");
             DpiAwarenessAwareLoc = Loc.Localize("DpiAwarenessAware", "Aware");
@@ -100,23 +102,17 @@ namespace XIVLauncher.Windows.ViewModel
 
             SettingsInGameLoc = Loc.Localize("SettingsInGame", "Dalamud");
             InGameAddonDescriptionLoc = Loc.Localize("InGameAddonDescription",
-                "These options affect the XIVLauncher in-game features, provided by Dalamud. These features will be automatically\r\nenabled if you are running the DirectX 11 version of the game, the version of the game is\r\ncompatible, and the checkbox below is ticked.");
+                "These options affect Dalamud, the XIVLauncher plugin loader.\nDalamud will be enabled if the version of the game is compatible, and the checkbox below is ticked.");
             InGameAddonCommandHintLoc = Loc.Localize("InGameAddonCommandHint",
-                "When enabled, type \"/xlhelp\" in-game to see other available commands.");
+                "When enabled, hover the red moon logo on the title screen for options.");
             InGameAddonEnabledCheckBoxLoc = Loc.Localize("InGameAddonEnabledCheckBox", "Enable Dalamud");
-            InGameAddonChatSettingsLoc = Loc.Localize("ChatSettings", "Chat settings");
-            InGameAddonDiscordBotTokenLoc = Loc.Localize("DiscordBotToken", "Discord Bot Token");
-            InGameAddonHowLoc = Loc.Localize("HowToHint", "How do I set this up?");
-            InGameAddonAddChatChannelLoc = Loc.Localize("AddChatChannel", "Add chat channel");
-            InGameAddonSetCfChannelLoc = Loc.Localize("InGameAddonSetCfChannel", "Set Duty Finder notification channel");
-            InGameAddonSetRouletteChannelLoc = Loc.Localize("InGameAddonSetRouletteChannel", "Set Roulette Bonus notification channel");
-            InGameAddonSetRetainerChannelLoc = Loc.Localize("InGameAddonSetRetainerChannel", "Set retainer sale channel");
-            InGameAddonChatDelayLoc = Loc.Localize("InGameAddonChatDelay", "Chat Post Delay");
-            InGameAddonChatDelayDescriptionLoc = Loc.Localize("InGameAddonChatDelayDescription",
-                "Check for recently sent messages to avoid duplicates.\r\nThis allows for multiple users to use the same channel as a chat log.\r\nPlease set an appropriate delay in milliseconds below(e.g. 1000).");
             InGameAddonInjectionDelayLoc = Loc.Localize("InGameAddonInjectionDelayLoc", "Addon Injection Delay");
             InGameAddonInjectionDelayDescriptionLoc = Loc.Localize("InGameAddonInjectionDelayDescriptionLoc",
                 "Delay the injection of the in-game addon. This allows you to hide it from e.g. OBS and Discord, since they will inject before it does.");
+            InGameAddonBranchSwitcherDescriptionLoc = Loc.Localize("InGameAddonBranchSwitcherDescriptionLoc",
+                "Dalamud has multiple release channels. Click the button below to switch between them.\nThis can be used to test new features or opt into beta testing releases for new patches.");
+            InGameAddonBranchSwitcherCurrentBranchLoc = Loc.Localize("InGameAddonBranchSwitcherCurrentBranchLoc",
+                "Currently selected branch: ");
 
             InGameAddonLoadMethodLoc = Loc.Localize("InGameAddonLoadMethodLoc",
                 "Choose how to load Dalamud.");
@@ -128,18 +124,6 @@ namespace XIVLauncher.Windows.ViewModel
                 "This method uses Entry-Point rewriting to load Dalamud, which may be more compatible with certain other software, like anti-virus tools.");
             InGameAddonLoadMethodDllInjectDescriptionLoc = Loc.Localize("InGameAddonLoadMethodDllInjectDescriptionLoc",
                 "This method loads Dalamud via DLL-injection, which may be more stable on certain systems.");
-
-            UniversalisHintLoc = Loc.Localize("UniversalisHint",
-                "Market board data provided in cooperation with Universalis.");
-            UniversalisOptOutLoc = Loc.Localize("UniversalisOptOut",
-                "Opt-out of contributing anonymously to crowd-sourced market board information");
-
-            PluginsDescriptionLoc = Loc.Localize("PluginsDescriptionLoc",
-                "These are the plugins that are currently available installed on your machine.");
-            PluginsToggleLoc = Loc.Localize("Toggle", "Toggle");
-            PluginsDeleteLoc = Loc.Localize("Delete", "Delete");
-            PluginsInstallHintLoc =
-                Loc.Localize("PluginsInstallHint", "Choose \"Plugin Installer\" or use the /xlplugins command in-game to install more plugins.");
 
             SettingsPatchingLoc = Loc.Localize("SettingsPatching", "Patching");
             AskBeforePatchLoc = Loc.Localize("AskBeforePatch", "Ask before installing a game patch");
@@ -161,6 +145,9 @@ namespace XIVLauncher.Windows.ViewModel
             OpenAdvancedSettingsLoc = Loc.Localize("OpenAdvancedSettings", "Open Advanced Settings");
             OpenAdvancedSettingsTipLoc = Loc.Localize("OpenAdvancedSettingsTip", "Opens some settings for advanced users. Please only use these if you know what you're doing.");
 
+            OpenDalamudBranchSwitcherLoc = Loc.Localize("OpenDalamudBranchSwitcher", "Switch Dalamud Branch");
+            OpenDalamudBranchSwitcherTipLoc = Loc.Localize("OpenDalamudBranchSwitcherTip", "Open an interface that lets you opt into testing releases for Dalamud.");
+
             PluginDisabledTagLoc = Loc.Localize("DisabledPlugin", " (disabled)");
         }
 
@@ -176,6 +163,8 @@ namespace XIVLauncher.Windows.ViewModel
         public string OtpServerTooltipLoc { get; private set; }
         public string LearnMoreLoc { get; private set; }
         public string OtpLearnMoreTooltipLoc { get; private set; }
+        public string OtpAlwaysOnTopCheckBoxLoc { get; private set; }
+        public string OtpAlwaysOnTopTooltipLoc { get; private set; }
         public string AdditionalArgumentsLoc { get; private set; }
         public string ChooseDpiAwarenessLoc { get; private set; }
         public string ChooseDpiAwarenessHintLoc { get; private set; }
@@ -187,8 +176,6 @@ namespace XIVLauncher.Windows.ViewModel
         public string AutoStartSteamTooltipLoc { get; private set; }
 
         public string SettingsGameSettingsLoc { get; private set; }
-        public string DirectXLoc { get; private set; }
-        public string DirectX9NoticeLoc { get; private set; }
         public string ChooseLanguageLoc { get; private set; }
         public string ChooseLauncherLanguageLoc { get; private set; }
         public string LauncherLanguageHelpCtaLoc { get; private set; }
@@ -204,15 +191,6 @@ namespace XIVLauncher.Windows.ViewModel
         public string InGameAddonDescriptionLoc { get; private set; }
         public string InGameAddonCommandHintLoc { get; private set; }
         public string InGameAddonEnabledCheckBoxLoc { get; private set; }
-        public string InGameAddonChatSettingsLoc { get; private set; }
-        public string InGameAddonDiscordBotTokenLoc { get; private set; }
-        public string InGameAddonHowLoc { get; private set; }
-        public string InGameAddonAddChatChannelLoc { get; private set; }
-        public string InGameAddonSetCfChannelLoc { get; private set; }
-        public string InGameAddonSetRouletteChannelLoc { get; private set; }
-        public string InGameAddonSetRetainerChannelLoc { get; private set; }
-        public string InGameAddonChatDelayLoc { get; private set; }
-        public string InGameAddonChatDelayDescriptionLoc { get; private set; }
         public string InGameAddonInjectionDelayLoc { get; private set; }
         public string InGameAddonInjectionDelayDescriptionLoc { get; private set; }
         public string InGameAddonLoadMethodLoc { get; private set; }
@@ -220,13 +198,8 @@ namespace XIVLauncher.Windows.ViewModel
         public string InGameAddonLoadMethodDllInjectLoc { get; private set; }
         public string InGameAddonLoadMethodEntryPointDescriptionLoc { get; private set; }
         public string InGameAddonLoadMethodDllInjectDescriptionLoc { get; private set; }
-        public string UniversalisHintLoc { get; private set; }
-        public string UniversalisOptOutLoc { get; private set; }
-
-        public string PluginsDescriptionLoc { get; private set; }
-        public string PluginsToggleLoc { get; private set; }
-        public string PluginsDeleteLoc { get; private set; }
-        public string PluginsInstallHintLoc { get; private set; }
+        public string InGameAddonBranchSwitcherDescriptionLoc { get; private set; }
+        public string InGameAddonBranchSwitcherCurrentBranchLoc { get; private set; }
 
         public string SettingsPatchingLoc { get; private set; }
         public string AskBeforePatchLoc { get; private set; }
@@ -245,6 +218,8 @@ namespace XIVLauncher.Windows.ViewModel
         public string IsFreeTrialLoc { get; private set; }
         public string OpenAdvancedSettingsLoc { get; private set; }
         public string OpenAdvancedSettingsTipLoc { get; private set; }
+        public string OpenDalamudBranchSwitcherLoc { get; private set; }
+        public string OpenDalamudBranchSwitcherTipLoc { get; private set; }
 
         public string PluginDisabledTagLoc { get; private set; }
     }

@@ -164,7 +164,7 @@ public static class LaunchServices
         switch (Environment.OSVersion.Platform)
         {
             case PlatformID.Win32NT:
-                dalamudRunner = new WindowsDalamudRunner();
+                dalamudRunner = new WindowsDalamudRunner(Program.DalamudUpdater.Runtime);
                 dalamudCompatCheck = new WindowsDalamudCompatibilityCheck();
                 break;
 
@@ -214,7 +214,7 @@ public static class LaunchServices
     {
         IDalamudRunner dalamudRunner = Environment.OSVersion.Platform switch
         {
-            PlatformID.Win32NT => new WindowsDalamudRunner(),
+            PlatformID.Win32NT => new WindowsDalamudRunner(Program.DalamudUpdater.Runtime),
             PlatformID.Unix => new UnixDalamudRunner(Program.CompatibilityTools, Program.DotnetRuntime),
             _ => throw new ArgumentOutOfRangeException()
         };
@@ -229,7 +229,7 @@ public static class LaunchServices
 
         if (Environment.OSVersion.Platform == PlatformID.Win32NT)
         {
-            runner = new WindowsGameRunner(dalamudLauncher, dalamudOk, Program.DalamudUpdater!.Runtime);
+            runner = new WindowsGameRunner(dalamudLauncher, dalamudOk);
         }
         else if (Environment.OSVersion.Platform == PlatformID.Unix)
         {

@@ -75,53 +75,84 @@ public class RemotePatchInstaller
 
     private void RemoteCallHandler(PatcherIpcEnvelope envelope)
     {
-        switch (envelope.OpCode)
+        try
         {
-            case PatcherIpcOpCode.Bye:
-                Task.Run(() =>
-                {
-                    Thread.Sleep(3000);
-                    IsDone = true;
-                });
-                break;
-
-            case PatcherIpcOpCode.StartInstall:
-
-                var installData = (PatcherIpcStartInstall)envelope.Data;
-                this.queuedInstalls.Enqueue(installData);
-                break;
-
-            case PatcherIpcOpCode.Finish:
-                var path = (DirectoryInfo)envelope.Data;
-
-                try
-                {
-                    VerToBck(path);
-                    Log.Information("VerToBck done");
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "VerToBck failed");
-                    this.rpc.SendMessage(new PatcherIpcEnvelope
+            switch (envelope.OpCode)
+            {
+                case PatcherIpcOpCode.Bye:
+                    Task.Run(() =>
                     {
-                        OpCode = PatcherIpcOpCode.InstallFailed
+                        Thread.Sleep(3000);
+                        IsDone = true;
                     });
-                }
+                    break;
 
-                break;
+                case PatcherIpcOpCode.StartInstall:
+
+                    var installData = (PatcherIpcStartInstall)envelope.Data;
+                    this.queuedInstalls.Enqueue(installData);
+                    break;
+
+                case PatcherIpcOpCode.Finish:
+                    var path = new DirectoryInfo((string)envelope.Data);
+
+                    try
+                    {
+                        VerToBck(path);
+                        Log.Information("[PATCHER] VerToBck done");
+                        this.rpc.SendMessage(new PatcherIpcEnvelope
+                        {
+                            OpCode = PatcherIpcOpCode.Finish
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "[PATCHER] VerToBck failed");
+                        this.rpc.SendMessage(new PatcherIpcEnvelope
+                        {
+                            OpCode = PatcherIpcOpCode.InstallFailed
+                        });
+                    }
+
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(envelope.OpCode), $"Unknown RPC opcode {envelope.OpCode}");
+            }
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PATCHER] RemoteCallHandler encountered an error");
+            this.rpc.SendMessage(new PatcherIpcEnvelope
+            {
+                OpCode = PatcherIpcOpCode.InstallFailed
+            });
+        }
+    }
+
+    private static void EnsureGameDirectories(DirectoryInfo gamePath)
+    {
+        if (!gamePath.Exists)
+            gamePath.Create();
+
+        // DirectoryInfo.CreateSubdirectory() has regressed in .NET Core and does not
+        // work on drive roots. There seemingly are a bunch of people that do this,
+        // so we have to support it here for existing installations.
+        // https://github.com/dotnet/runtime/issues/116087
+        var gameDir = Path.Combine(gamePath.FullName, "game");
+        if (!Directory.Exists(gameDir))
+            Directory.CreateDirectory(gameDir);
+
+        var bootDir = Path.Combine(gamePath.FullName, "boot");
+        if (!Directory.Exists(bootDir))
+            Directory.CreateDirectory(bootDir);
     }
 
     private bool RunInstallQueue()
     {
         if (this.queuedInstalls.TryDequeue(out var installData))
         {
-            // Ensure that subdirs exist
-            if (!installData.GameDirectory.Exists)
-                installData.GameDirectory.Create();
-
-            installData.GameDirectory.CreateSubdirectory("game");
-            installData.GameDirectory.CreateSubdirectory("boot");
+            EnsureGameDirectories(installData.GameDirectory);
 
             try
             {

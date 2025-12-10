@@ -8,12 +8,12 @@ using XIVLauncher.Common.PatcherIpc;
 using XIVLauncher.Common.Patching;
 using XIVLauncher.Common.Patching.Rpc;
 using XIVLauncher.Common.Patching.Rpc.Implementations;
+using XIVLauncher.Common.Util;
 
 namespace XIVLauncher.Common.Game.Patch
 {
-    public class PatchInstaller : IDisposable
+    public class PatchInstaller(DirectoryInfo gamePath, bool keepPatches) : IDisposable
     {
-        private readonly bool keepPatches;
         private IRpc rpc;
 
         private RemotePatchInstaller? internalPatchInstaller;
@@ -31,14 +31,9 @@ namespace XIVLauncher.Common.Game.Patch
 
         public event Action OnFail;
 
-        public PatchInstaller(bool keepPatches)
-        {
-            this.keepPatches = keepPatches;
-        }
-
         public void StartIfNeeded(bool external = true)
         {
-            var rpcName = "XLPatcher" + Guid.NewGuid().ToString();
+            var rpcName = "XLPatcher" + Guid.NewGuid();
 
             Log.Information("[PATCHERIPC] Starting patcher with '{0}'", rpcName);
 
@@ -47,15 +42,18 @@ namespace XIVLauncher.Common.Game.Patch
                 this.rpc = new SharedMemoryRpc(rpcName);
                 this.rpc.MessageReceived += RemoteCallHandler;
 
-                var path = Path.Combine(AppContext.BaseDirectory,
-                    "XIVLauncher.PatchInstaller.exe");
+                var path = Path.Combine(AppContext.BaseDirectory, "patcher", "XIVLauncher.PatchInstaller.exe");
 
                 var startInfo = new ProcessStartInfo(path);
                 startInfo.UseShellExecute = true;
 
                 //Start as admin if needed
-                if (!EnvironmentSettings.IsNoRunas && Environment.OSVersion.Version.Major >= 6)
+                if (!EnvironmentSettings.IsNoRunas &&
+                    Environment.OSVersion.Version.Major >= 6 &&
+                    PlatformHelpers.IsElevationRequiredForWrite(gamePath))
+                {
                     startInfo.Verb = "runas";
+                }
 
                 if (!Debugger.IsAttached)
                 {
@@ -92,13 +90,17 @@ namespace XIVLauncher.Common.Game.Patch
             switch (envelope.OpCode)
             {
                 case PatcherIpcOpCode.Hello:
-                    //_client.Initialize(_clientPort);
                     Log.Information("[PATCHERIPC] GOT HELLO");
                     State = InstallerState.Ready;
                     break;
 
                 case PatcherIpcOpCode.InstallOk:
                     Log.Information("[PATCHERIPC] INSTALL OK");
+                    State = InstallerState.Ready;
+                    break;
+
+                case PatcherIpcOpCode.Finish:
+                    Log.Information("[PATCHERIPC] INSTALL FINISH");
                     State = InstallerState.Ready;
                     break;
 
@@ -151,18 +153,33 @@ namespace XIVLauncher.Common.Game.Patch
                     PatchFile = file,
                     Repo = patch.GetRepo(),
                     VersionId = patch.VersionId,
-                    KeepPatch = this.keepPatches,
+                    KeepPatch = keepPatches,
                 }
             });
         }
 
-        public void FinishInstall(DirectoryInfo gameDirectory)
+        public void FinalizeAndWait(DirectoryInfo gameDirectory)
         {
+            State = InstallerState.Busy;
             this.rpc.SendMessage(new PatcherIpcEnvelope
             {
                 OpCode = PatcherIpcOpCode.Finish,
                 Data = gameDirectory
             });
+
+            var cts = new CancellationTokenSource(5000);
+
+            while (this.State != InstallerState.Ready)
+            {
+                Thread.Sleep(100);
+
+                if (cts.Token.IsCancellationRequested)
+                {
+                    Log.Error("Timeout waiting for installer to finish after finishing install.");
+                    OnFail?.Invoke();
+                    break;
+                }
+            }
         }
 
         public void Dispose()
