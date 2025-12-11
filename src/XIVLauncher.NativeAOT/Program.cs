@@ -479,4 +479,17 @@ public class Program
             return false;
         }
     }
+
+    [UnmanagedCallersOnly(EntryPoint = "updateDalamud")]
+    public static void UpdateDalamud(nint betaKind, nint betaKey)
+    {
+        try
+        {
+            DalamudUpdater!.Run(Marshal.PtrToStringUTF8(betaKind), Marshal.PtrToStringUTF8(betaKey));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to update Dalamud");
+        }
+    }
 }
