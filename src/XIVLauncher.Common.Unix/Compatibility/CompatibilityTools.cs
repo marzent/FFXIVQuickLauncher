@@ -38,7 +38,7 @@ public class CompatibilityTools
     private string WineBinPath => Settings.StartupType == WineStartupType.Managed ?
                                     Path.Combine(toolDirectory.FullName, WINE_XIV_RELEASE_NAME, "bin") :
                                     Settings.CustomBinPath;
-    private string Wine64Path => Path.Combine(WineBinPath, "wine64");
+    private string Wine64Path => Path.Combine(WineBinPath, "wine");
     private string WineServerPath => Path.Combine(WineBinPath, "wineserver");
 
     public bool IsToolDownloaded => File.Exists(Wine64Path) && Settings.Prefix.Exists;
