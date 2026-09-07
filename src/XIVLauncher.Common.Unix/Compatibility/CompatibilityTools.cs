@@ -165,7 +165,7 @@ public class CompatibilityTools
 
         var wineEnviromentVariables = new Dictionary<string, string>();
         wineEnviromentVariables.Add("WINEPREFIX", Settings.Prefix.FullName);
-        wineEnviromentVariables.Add("WINEDLLOVERRIDES", $"msquic=,mscoree=n,b;d3d11=n,b;dxgi=n,b");
+        wineEnviromentVariables.Add("WINEDLLOVERRIDES", $"msquic=;icuuc=d;mscoree=n,b;d3d11=n,b;dxgi=n,b");
 
         if (!string.IsNullOrEmpty(Settings.DebugVars))
         {
